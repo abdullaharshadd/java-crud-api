@@ -1,19 +1,235 @@
-# Java Spring Boot CRUD Project
+# java-crud-api (Go Migration)
 
-This project demonstrates a basic CRUD (Create, Read, Update, Delete) application built using Java and Spring Boot. The application provides a user-friendly interface to manage data through
-simple yet powerful RESTful API endpoints.
+> **⚠️ Migration Warning:** This project was automatically migrated from Java/Spring Boot to Go/standard library with **0% overall confidence**. Every file requires manual review before this code is production-ready.
 
-## Features:
-- Create: Add new records to the database.
-- Read: Retrieve and view existing records.
-- Update: Modify and update records in real time.
-- Delete: Remove unwanted data from the system.
+---
 
-## Key Components:
-- Spring Boot: Utilizing the powerful Spring Boot framework for rapid application development and seamless integration with various modules.
-- RESTful API: Implementing RESTful API endpoints for handling CRUD operations.
-- Database: Using a relational database MySQL to persist data.
+## What This App Does
 
+A REST API for managing smart contacts (users). The original application provided CRUD endpoints for user records backed by a relational database, with a service layer, repository layer, and centralized error handling.
 
+---
 
-Feel free to contribute, enhance, or customize this project according to your specific requirements or extend it with additional features. Happy coding!
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Go (standard library) |
+| HTTP Router | `net/http` (standard library) |
+| ORM / DB Layer | Requires manual selection (see Migration Notes) |
+| Testing | `testing` package + [testify](https://github.com/stretchr/testify) |
+| Build | `go build` |
+
+---
+
+## Prerequisites
+
+- Go 1.21 or later
+- A running relational database (MySQL or PostgreSQL — match what the original `application.properties` targeted)
+- `npm` is listed in detected setup commands but **does not apply** to this Go project — disregard it
+- Git
+
+---
+
+## Getting Started
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/abdullaharshadd/java-crud-api.git
+cd java-crud-api
+```
+
+### 2. Install Go dependencies
+
+```bash
+go mod tidy
+```
+
+> **Note:** The automated migration detected `npm install` as the install command. This is incorrect for the Go target stack. Use `go mod tidy` instead.
+
+### 3. Set up environment variables
+
+Copy the example env file and fill in your values:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` with your database credentials. See the [Environment Variables](#environment-variables) table below.
+
+### 4. Set up the database
+
+**The original project used `spring.jpa.hibernate.ddl-auto=update` to manage the schema automatically. This behavior was not migrated.**
+
+You must create the schema manually before running the application. Either:
+
+- Write and apply a SQL migration script matching the original entity definitions, or
+- Integrate a migration tool such as [golang-migrate](https://github.com/golang-migrate/migrate) or [goose](https://github.com/pressly/goose)
+
+Example using golang-migrate:
+
+```bash
+migrate -path ./migrations -database "mysql://user:password@tcp(localhost:3306)/smartcontact" up
+```
+
+### 5. Run the application
+
+```bash
+go run ./cmd/main.go
+```
+
+Or build and run the binary:
+
+```bash
+go build -o smartcontact ./cmd/main.go
+./smartcontact
+```
+
+> **Note:** No run command was detected during migration. The entry point path above (`./cmd/main.go`) must be verified against the actual migrated project structure.
+
+---
+
+## Running Tests
+
+```bash
+go test ./...
+```
+
+To run with verbose output:
+
+```bash
+go test -v ./...
+```
+
+To run a specific package:
+
+```bash
+go test -v ./internal/service/...
+```
+
+> **Warning:** The original test suite contained invalid Mockito usage (mocking a real Spring bean) and Spring-specific bootstrap tests. These were not directly portable. See [Known Limitations](#known-limitations). The migrated tests likely need to be rewritten from scratch.
+
+---
+
+## Environment Variables
+
+No environment variables were automatically detected by the migration tooling. Based on the original `application.properties`, the following variables should be configured:
+
+| Variable | Description | Example |
+|---|---|---|
+| `DB_HOST` | Database host | `localhost` |
+| `DB_PORT` | Database port | `3306` |
+| `DB_NAME` | Database name | `smartcontact` |
+| `DB_USER` | Database username | `root` |
+| `DB_PASSWORD` | Database password | `secret` |
+| `SERVER_PORT` | Port the HTTP server listens on | `8080` |
+
+> These variable names are suggestions. The migrated code may use different names or read directly from a config file. Verify against the actual migrated source.
+
+---
+
+## Architecture Overview
+
+The migrated Go project follows a layered structure modeled after the original Spring application:
+
+```
+.
+├── cmd/
+│   └── main.go              # Application entry point
+├── internal/
+│   ├── handler/             # HTTP handlers (replaces @RestController)
+│   ├── service/             # Business logic (replaces @Service)
+│   ├── repository/          # Data access layer (replaces @Repository / UserDao)
+│   ├── model/               # Structs (replaces @Entity + Lombok models)
+│   └── error/               # Error types and HTTP error responses
+│                            #   (replaces RestResponseEntityExceptionHandling)
+├── migrations/              # SQL migration files (manual addition required)
+├── go.mod
+├── go.sum
+└── .env.example
+```
+
+**Key structural changes from Spring:**
+
+- Dependency injection is done via explicit constructor functions, not Spring's `@Autowired`
+- There is no application context or IoC container
+- Interfaces are used to define repository and service contracts, enabling test doubles
+- All boilerplate previously generated by Lombok (getters, constructors, etc.) is written explicitly in Go structs
+
+---
+
+## Migration Notes
+
+This section documents what changed between the original Java/Spring Boot codebase and the migrated Go code.
+
+### Framework replacement
+
+| Spring Concept | Go Equivalent |
+|---|---|
+| `@RestController` + `@RequestMapping` | `net/http` handler functions |
+| `@Service` / `@Repository` | Plain Go structs with interface contracts |
+| `@Autowired` dependency injection | Constructor injection (explicit) |
+| `@Entity` / JPA | Go struct fields; ORM must be selected manually |
+| `ResponseEntity<>` | Direct `http.ResponseWriter` calls |
+| `@ExceptionHandler` | Centralized error-handling middleware function |
+| `application.properties` | Environment variables or a config struct |
+
+### Lombok removal
+
+All model classes previously annotated with `@Data`, `@Getter`, `@Setter`, `@NoArgsConstructor`, or `@AllArgsConstructor` have been rewritten as Go structs with explicit field declarations. Constructor helpers are plain functions.
+
+### Schema management
+
+`spring.jpa.hibernate.ddl-auto=update` has been removed. **You must manage the database schema explicitly.** See [Set up the database](#4-set-up-the-database).
+
+### Build system
+
+Maven (`pom.xml`, `mvnw`) has been replaced by Go modules (`go.mod`, `go.sum`) and `go build`. The Maven wrapper files have been discarded.
+
+---
+
+## Known Limitations
+
+The following components could not be automatically migrated and require manual intervention:
+
+### Unmigrable components
+
+| File | Component | Reason | Recommended Action |
+|---|---|---|---|
+| `.mvn/wrapper/maven-wrapper.properties` | Maven wrapper | JVM/Maven-specific build tooling with no Go equivalent | Discard. Use `go build` and `go mod` for version pinning. |
+| `pom.xml` | Lombok | JVM compile-time annotation processor; no meaning in Go | Write struct fields and boilerplate explicitly. Already done in migration, but verify correctness. |
+| `pom.xml` | `spring-boot-maven-plugin` | Maven-specific packaging plugin | Replace with `go build`. Configure your deployment target to run the compiled binary. |
+| `pom.xml` | Spring Boot parent BOM | Maven version management mechanism | Manually pin dependency versions in `go.mod`. |
+| `application.properties` | `ddl-auto=update` | Hibernate-specific automatic schema management | Introduce `golang-migrate` or `goose` and write explicit migration SQL files. |
+| `SmartContactApplicationTests.java` | `@SpringBootTest` context test | Validates Spring context bootstrap; meaningless outside Spring | Write a Go integration test that starts the HTTP server and hits a health endpoint, or omit. |
+| `UserServiceImpTest.java` | Mockito misuse on `@Autowired` bean | Invalid test pattern that would fail at runtime; not portable | Rewrite: define a `UserRepository` interface, implement a hand-rolled stub, inject it into the service, and assert behavior using `testify/assert`. |
+| `UserServiceImpTest.java` | `@BeforeAll` non-static method | Requires `@TestInstance(PER_CLASS)` which is absent; lifecycle is broken | Use `TestMain` for one-time setup or per-test fixture helper functions. |
+
+---
+
+## Manual Review Required
+
+The following files were migrated with **low confidence** and must be manually verified by a developer before use:
+
+| File | Why It Needs Review |
+|---|---|
+| `pom.xml` | Source of all dependency mappings; unmigrable components listed above came from here. Verify all Go dependency equivalents are correctly chosen and pinned in `go.mod`. |
+| `src/main/resources/application.properties` | Configuration values (DB URL, port, etc.) must be manually mapped to the Go config/env strategy. The `ddl-auto` setting was dropped entirely. |
+| `src/test/java/com/smartContact/SmartContactApplicationTests.java` | Not portable. Must be replaced with a Go-idiomatic startup/health test or omitted. |
+| `src/main/java/com/smartContact/error/RestResponseEntityExceptionHandling.java` | Error-handling middleware in Go works differently from Spring's `@ControllerAdvice`. Verify that all error cases are correctly caught and that HTTP status codes match the original behavior. |
+| `src/main/java/com/smartContact/repository/UserDao.java` | JPA repository interfaces cannot be auto-implemented in Go. Verify that the repository implementation correctly executes the equivalent SQL queries. |
+| `src/main/java/com/smartContact/service/UserService.java` | Service interface definition. Verify method signatures match what handlers and tests expect. |
+| `src/main/java/com/smartContact/service/UserServiceImp.java` | Core business logic. Verify that service method behavior is semantically equivalent to the original Java implementation. |
+
+---
+
+## Overall Migration Confidence: 0%
+
+The automated migration tool reported **0% confidence** across all 14 migrated modules. This means:
+
+- The output should be treated as a **structural scaffold**, not working code
+- Every migrated file must be read and validated by a developer familiar with both Go and the original Spring application
+- **Do not deploy this to production without a full manual review and a passing test suite written from scratch**
+
+If you have access to the original running Spring application, use it as the source of truth for expected API behavior, request/response shapes, and error codes.
