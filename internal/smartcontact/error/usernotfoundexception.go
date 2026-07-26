@@ -1,13 +1,25 @@
-// Package apperr defines application-level sentinel errors used across the
-// smartcontact service to signal well-known failure conditions such as a
-// missing user.
+// Package apperr defines application-level sentinel errors for the
+// SmartContact application. These errors are used by the service layer to
+// signal well-known failure conditions (such as a missing user) that callers
+// can detect with errors.Is / errors.As and translate into appropriate
+// HTTP responses.
 //
-// MIGRATION_NOTE: The original Java package was com.smartContact.error and
-// contained a checked exception (UserNotFoundException). In idiomatic Go we do
-// not model exceptions as types with constructor overloads. Instead we expose a
-// sentinel error (ErrNotFound) that callers can match with errors.Is, plus a
-// helper constructor that formats a user-specific message and wraps the
-// sentinel so both the specific detail and the general category are preserved.
+// MIGRATION_NOTE: The original Java type was
+// `com.smartContact.error.UserNotFoundException`, a custom checked exception
+// that extended java.lang.Exception with the standard four public
+// constructors plus the protected suppression/stack-trace constructor.
+//
+// Go has no exceptions and no constructor overloading, so the idiomatic
+// replacement is:
+//   - A sentinel error value (ErrUserNotFound) for identity comparison via
+//     errors.Is.
+//   - A lightweight error type (UserNotFoundError) that can optionally carry
+//     a wrapped cause and a user id, replacing the message/cause constructor
+//     overloads. It implements Unwrap so errors.Is/As traverse the chain.
+//
+// The `enableSuppression` / `writableStackTrace` protected constructor has no
+// Go equivalent — Go errors do not carry stack traces by default and there is
+// no suppression mechanism — so it is intentionally omitted.
 package apperr
 
 import (
@@ -17,68 +29,68 @@ import (
 	"github.com/smartContact/internal/smartcontact/model"
 )
 
-// ErrNotFound is the sentinel error indicating that a requested user could not
-// be located. Service-layer code should return an error that wraps ErrNotFound
-// (typically via NewUserNotFound) so callers can detect the condition with
-// errors.Is(err, apperr.ErrNotFound).
-//
-// MIGRATION_NOTE: This replaces the parameterless
-// UserNotFoundException() constructor and the checked-exception semantics of
-// the original Java class.
-var ErrNotFound = errors.New("user not found")
+// ErrUserNotFound is the sentinel error returned by the service layer when a
+// requested user cannot be located (for example, when FindByID yields no
+// result). Callers should test for it with errors.Is(err, ErrUserNotFound).
+var ErrUserNotFound = errors.New("user not found")
 
-// UserNotFoundError carries the identifier of the user that could not be found
-// along with an optional underlying cause. It wraps ErrNotFound so it satisfies
-// errors.Is(err, ErrNotFound), and exposes the cause through Unwrap.
+// UserNotFoundError is a concrete error type describing a failed user lookup.
+// It carries the offending user id and an optional wrapped cause, replacing
+// the message/cause constructor overloads of the original Java exception.
 //
-// MIGRATION_NOTE: The Java class offered four public/protected constructors
-// (message, message+cause, cause, and the suppression/stacktrace variant). Go
-// has no stack-trace suppression flags, so that constructor is dropped. The
-// remaining behaviours are covered by NewUserNotFound and NewUserNotFoundWithCause.
+// It always unwraps to ErrUserNotFound so that
+// errors.Is(err, ErrUserNotFound) succeeds regardless of how the error was
+// constructed.
 type UserNotFoundError struct {
-	// ID is the identifier of the user that could not be located.
-	ID int64
-	// cause is the optional underlying error, if any.
-	cause error
+	// UserID is the identifier that could not be resolved. It may be empty
+	// when the id is unknown to the caller.
+	UserID string
+	// Cause is the underlying error that triggered this failure, if any.
+	// It is nil when the not-found condition has no lower-level cause.
+	Cause error
 }
 
-// NewUserNotFound returns a UserNotFoundError for the given user ID. The
-// resulting error wraps ErrNotFound and formats its message using the shared
-// model.UserNotFoundMessageFormat.
-func NewUserNotFound(id int64) error {
-	return &UserNotFoundError{ID: id}
+// NewUserNotFoundError builds a UserNotFoundError for the given user id.
+// It is the equivalent of the message-only Java constructor and produces an
+// error whose message follows model.UserNotFoundMessageFormat.
+func NewUserNotFoundError(userID string) *UserNotFoundError {
+	return &UserNotFoundError{UserID: userID}
 }
 
-// NewUserNotFoundWithCause returns a UserNotFoundError for the given user ID
-// that additionally wraps an underlying cause. The cause is exposed via Unwrap
-// so it participates in errors.Is / errors.As chains.
-func NewUserNotFoundWithCause(id int64, cause error) error {
-	return &UserNotFoundError{ID: id, cause: cause}
+// NewUserNotFoundErrorWithCause builds a UserNotFoundError for the given user
+// id while preserving the underlying cause. It is the equivalent of the
+// (message, cause) Java constructor.
+func NewUserNotFoundErrorWithCause(userID string, cause error) *UserNotFoundError {
+	return &UserNotFoundError{UserID: userID, Cause: cause}
 }
 
-// Error implements the error interface, producing the standardized
-// "user not found" message including the user ID and any underlying cause.
+// Error implements the error interface. The message is formatted using
+// model.UserNotFoundMessageFormat to keep parity with the original
+// application's user-facing wording.
 func (e *UserNotFoundError) Error() string {
-	msg := fmt.Sprintf(model.UserNotFoundMessageFormat, e.ID)
-	if e.cause != nil {
-		return fmt.Sprintf("%s: %v", msg, e.cause)
+	msg := fmt.Sprintf(model.UserNotFoundMessageFormat, e.UserID)
+	if e.Cause != nil {
+		return fmt.Sprintf("%s: %v", msg, e.Cause)
 	}
 	return msg
 }
 
-// Is reports whether target matches this error. It returns true for
-// ErrNotFound so that errors.Is(err, apperr.ErrNotFound) succeeds regardless of
-// the concrete ID.
+// Is reports whether target matches this error. It returns true for the
+// ErrUserNotFound sentinel, allowing errors.Is(err, ErrUserNotFound) to
+// succeed for any UserNotFoundError value.
 func (e *UserNotFoundError) Is(target error) bool {
-	return target == ErrNotFound
+	return target == ErrUserNotFound
 }
 
-// Unwrap returns the underlying cause, enabling errors.Is / errors.As to
-// traverse the wrapped error chain. If no cause was supplied, it returns
-// ErrNotFound so the sentinel remains reachable via Unwrap as well.
+// Unwrap exposes the underlying cause so that errors.Is and errors.As can
+// traverse the wrapped error chain.
 func (e *UserNotFoundError) Unwrap() error {
-	if e.cause != nil {
-		return e.cause
-	}
-	return ErrNotFound
+	return e.Cause
+}
+
+// ErrorMessage renders this error as the application's transport-level
+// ErrorMessage model, mirroring how a missing-user exception would have been
+// surfaced to HTTP clients in the original Spring application.
+func (e *UserNotFoundError) ErrorMessage(status int) model.ErrorMessage {
+	return model.NewErrorMessage(status, model.StatusText(status), e.Error())
 }
