@@ -1,39 +1,13 @@
-// Package service defines the service-layer contracts for the SmartContact
-// application.
-//
-// MIGRATION_NOTE: The Java source UserService.java was a Spring service-layer
-// interface (interface/implementation separation, part of Spring's DI
-// pattern). In Go the idiomatic translation is a small interface consumed by
-// the HTTP handler and satisfied by a concrete implementation that wraps the
-// UserRepository. Key divergences from the Java original:
-//
-//   - Every I/O operation takes a context.Context as its first parameter for
-//     cancellation and deadline propagation.
-//   - Methods return explicit (T, error) pairs instead of relying on a checked
-//     UserNotFoundException; the not-found case is expressed with the migrated
-//     error.ErrUserNotFound sentinel (matchable via errors.Is).
-//   - The Java `int id` maps to Go's `int`. The domain model uses the migrated
-//     model.User type.
-//   - saveUser/updateUser/fetchUserList/deleteUser/getUserNameByName map to
-//     Save/Update/List/Delete/GetByName respectively, with idiomatic Go names.
-//
-// MANUAL REVIEW: The original Java interface exposed no persistence semantics
-// beyond the method signatures. The concrete implementation below assumes the
-// migrated UserRepository (internal/smartcontact/repository) is the single
-// backing store. Transaction boundaries — implicit in Spring via @Transactional
-// on the (unmigrated) implementation class — are NOT reproduced here because
-// the original interface carried no such annotations. If the original
-// UserServiceImpl used @Transactional, wrap the repository calls in a
-// transaction in mysqlUserRepo or introduce a Tx abstraction.
 package service
 
 import (
 	"context"
 	"fmt"
 
-	smartError "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/repository"
+	"github.com/go-playground/validator/v10"
+	smartError "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // UserService defines the user-related business operations exposed to the
@@ -82,24 +56,25 @@ type UserService interface {
 // UserServiceImpl. Dependencies are injected explicitly via NewUserService
 // rather than through Spring's @Autowired.
 type userService struct {
-	repo repository.UserRepository
+	repo     repository.UserRepository
+	validate *validator.Validate
 }
 
 // NewUserService constructs a UserService backed by the supplied repository.
 func NewUserService(repo repository.UserRepository) UserService {
-	return &userService{repo: repo}
+	return &userService{repo: repo, validate: validator.New()}
 }
 
 // Save validates and persists a new user.
 func (s *userService) Save(ctx context.Context, user model.User) (model.User, error) {
-	if err := user.Validate(); err != nil {
+	if err := user.Validate(s.validate); err != nil {
 		return model.User{}, fmt.Errorf("save user: %w", err)
 	}
-	saved, err := s.repo.Save(ctx, user)
+	saved, err := s.repo.Save(ctx, &user)
 	if err != nil {
 		return model.User{}, fmt.Errorf("save user: %w", err)
 	}
-	return saved, nil
+	return *saved, nil
 }
 
 // List returns all users.
@@ -118,7 +93,7 @@ func (s *userService) GetByID(ctx context.Context, id int) (model.User, error) {
 	if err != nil {
 		return model.User{}, fmt.Errorf("get user by id %d: %w", id, err)
 	}
-	return user, nil
+	return *user, nil
 }
 
 // Delete removes the user with the given id.
@@ -136,14 +111,14 @@ func (s *userService) Delete(ctx context.Context, id int) error {
 // ErrUserNotFound if not), then persist. The id from the path takes precedence
 // over any id embedded in the payload.
 func (s *userService) Update(ctx context.Context, id int, user model.User) error {
-	if err := user.Validate(); err != nil {
+	if err := user.Validate(s.validate); err != nil {
 		return fmt.Errorf("update user %d: %w", id, err)
 	}
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		return fmt.Errorf("update user %d: %w", id, err)
 	}
 	user.ID = id
-	if _, err := s.repo.Save(ctx, user); err != nil {
+	if _, err := s.repo.Save(ctx, &user); err != nil {
 		return fmt.Errorf("update user %d: %w", id, err)
 	}
 	return nil
@@ -156,7 +131,7 @@ func (s *userService) GetByName(ctx context.Context, name string) (model.User, e
 	if err != nil {
 		return model.User{}, fmt.Errorf("get user by name %q: %w", name, err)
 	}
-	return user, nil
+	return *user, nil
 }
 
 // Ensure the sentinel error remains referenced so intent stays documented for
