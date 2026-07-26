@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	smartcontacterror "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/model"
 	"migrated-app/internal/smartcontact/repository"
 )
@@ -59,8 +58,7 @@ type userService struct {
 // return null; here a missing user is reported explicitly via error.
 
 var (
-	_ smartcontacterror.Error = nil
-	_ model.User              = model.User{}
+	_ model.User                = model.User{}
 	_ repository.UserRepository = nil
 	_ = context.Background
 	_ = errors.New
