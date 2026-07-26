@@ -1,26 +1,3 @@
-// Package handler contains the HTTP handlers for the SmartContact
-// application.
-//
-// MIGRATION_NOTE: The Java source UserController.java was a Spring
-// @RestController using field injection (@Autowired) and declarative routing
-// annotations (@GetMapping/@PostMapping/@PutMapping/@DeleteMapping). The
-// idiomatic Go translation is:
-//
-//   - A UserHandler struct that holds the service.UserService dependency,
-//     injected explicitly via NewUserHandler (replacing Spring's field
-//     injection / component scanning).
-//   - Explicit route registration via RegisterRoutes on a chi router
-//     (replacing the annotation-driven routing).
-//   - Manual JSON (de)serialization with encoding/json (replacing @RequestBody
-//     / automatic JSON marshalling of return values).
-//   - Explicit bean validation via model.Validate (replacing @Valid triggering
-//     Spring's validator). Validation failures produce the migrated
-//     model.ErrorMessage shape with 400.
-//   - Malformed JSON bodies produce a Spring-DefaultErrorAttributes-shaped
-//     400 response (writeMalformedBody), matching the original framework
-//     behaviour observed in the agent debate (Change 14).
-//   - The UserNotFoundException checked-exception path becomes the migrated
-//     error.ErrUserNotFound sentinel, mapped to a 404 response.
 package handler
 
 import (
@@ -33,10 +10,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-playground/validator/v10"
 
-	smartcontacterror "github.com/smartcontact/internal/smartcontact/error"
-	"github.com/smartcontact/internal/smartcontact/model"
-	"github.com/smartcontact/internal/smartcontact/service"
+	smartcontacterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // UserHandler exposes the HTTP endpoints for User CRUD operations, delegating
@@ -45,12 +23,13 @@ import (
 // MIGRATION_NOTE: Replaces the Spring @RestController. The service dependency
 // is injected via the constructor instead of @Autowired field injection.
 type UserHandler struct {
-	svc service.UserService
+	svc      service.UserService
+	validate *validator.Validate
 }
 
 // NewUserHandler constructs a UserHandler with the given UserService.
 func NewUserHandler(svc service.UserService) *UserHandler {
-	return &UserHandler{svc: svc}
+	return &UserHandler{svc: svc, validate: validator.New()}
 }
 
 // RegisterRoutes registers all User endpoints on the provided chi router,
@@ -82,12 +61,12 @@ func (h *UserHandler) SaveUser(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err := model.Validate(&user); err != nil {
+	if err := user.Validate(h.validate); err != nil {
 		writeValidationError(w, err)
 		return
 	}
 
-	if _, err := h.svc.Save(req.Context(), &user); err != nil {
+	if err := h.svc.Save(req.Context(), user); err != nil {
 		writeInternalError(w, err)
 		return
 	}
@@ -162,7 +141,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if _, err := h.svc.Update(req.Context(), id, &user); err != nil {
+	if err := h.svc.Update(req.Context(), id, user); err != nil {
 		h.writeUserLookupError(w, err)
 		return
 	}
@@ -188,7 +167,7 @@ func (h *UserHandler) GetUserNameByName(w http.ResponseWriter, req *http.Request
 // the migrated error.ErrUserNotFound sentinel to a 404.
 func (h *UserHandler) writeUserLookupError(w http.ResponseWriter, err error) {
 	if errors.Is(err, smartcontacterror.ErrUserNotFound) {
-		writeJSON(w, http.StatusNotFound, model.NewErrorMessage(err.Error()))
+		writeJSON(w, http.StatusNotFound, model.NewErrorMessage(err.Error(), http.StatusNotFound))
 		return
 	}
 	writeInternalError(w, err)
@@ -225,13 +204,13 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 // writeValidationError writes a model.ErrorMessage-shaped 400 response,
 // matching Spring's @Valid failure handling.
 func writeValidationError(w http.ResponseWriter, err error) {
-	writeJSON(w, http.StatusBadRequest, model.NewErrorMessage(err.Error()))
+	writeJSON(w, http.StatusBadRequest, model.NewErrorMessage(err.Error(), http.StatusBadRequest))
 }
 
 // writeInternalError writes a generic 500 response.
 func writeInternalError(w http.ResponseWriter, err error) {
 	slog.Error("internal server error", slog.Any("error", err))
-	writeJSON(w, http.StatusInternalServerError, model.NewErrorMessage("internal server error"))
+	writeJSON(w, http.StatusInternalServerError, model.NewErrorMessage("internal server error", http.StatusInternalServerError))
 }
 
 // writeMalformedBody writes a Spring DefaultErrorAttributes-shaped 400
