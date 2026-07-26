@@ -19,28 +19,28 @@
 package smartcontact
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"migrated-app/internal/smartcontact/handler"
+	"migrated-app/internal/smartcontact/repository"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // buildRouter constructs and returns the fully-wired HTTP handler for the
-// SmartContact application.
-//
-// It is the Go equivalent of Spring Boot's auto-configured DispatcherServlet plus
-// component-scanned @Controller beans: every route the application serves is
-// registered here explicitly. cmd/server/main.go calls buildRouter() directly to
-// obtain the http.Handler it serves.
-//
-// MIGRATION_NOTE: The source SmartContactApplication.java defined no routes of
-// its own — it merely triggered component scanning of the com.smartContact
-// package. Because the controller source files are not part of this migration
-// batch, their routes are wired here as clearly-labelled placeholder stubs
-// (returning 200 OK) so the router is reachable and testable. Replace each stub
-// with the migrated handler as its owning controller file is ported.
+// SmartContact application with no external dependencies (stub/placeholder only).
 func buildRouter() http.Handler {
+	return buildRouterWithDB(nil)
+}
+
+// buildRouterWithDB constructs and returns the fully-wired HTTP handler for the
+// SmartContact application using the provided *sql.DB for persistence.
+// If db is nil, user routes are registered as stubs.
+func buildRouterWithDB(db *sql.DB) http.Handler {
 	r := chi.NewRouter()
 
 	// Cross-cutting middleware. Equivalent to Spring Boot's built-in request
@@ -96,11 +96,25 @@ func buildRouter() http.Handler {
 		})
 	})
 
+	// --- User CRUD API routes (migrated from UserController.java) ---
+	if db != nil {
+		userRepo := repository.NewMySQLUserRepo(db)
+		userSvc := service.NewUserService(userRepo)
+		userHandler := handler.NewUserHandler(userSvc)
+		userHandler.RegisterRoutes(r)
+	}
+
 	return r
 }
 
 // BuildRouter is the exported entry point cmd/server/main.go calls to obtain
-// the fully-wired HTTP handler.
+// the fully-wired HTTP handler (no DB dependency — stubs only).
 func BuildRouter() http.Handler {
 	return buildRouter()
+}
+
+// BuildRouterWithDB is the exported entry point that wires the real
+// persistence layer using the provided *sql.DB. Use this in production.
+func BuildRouterWithDB(db *sql.DB) http.Handler {
+	return buildRouterWithDB(db)
 }
