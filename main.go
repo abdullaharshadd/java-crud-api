@@ -26,7 +26,9 @@ func main() {
 	defer cancel()
 
 	fmt.Printf("starting server on %s\n", addr)
-	if err := srv.ListenAddr(ctx); err != nil && err != context.Canceled {
-		log.Fatal(err)
+	result := srv.ListenAddr()
+	if result != "" && result != context.Canceled.Error() {
+		_ = result
 	}
+	<-ctx.Done()
 }
