@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -26,15 +25,8 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	_ = srv.ListenAddr()
-
 	fmt.Printf("starting server on %s\n", addr)
-	httpSrv := &http.Server{Addr: addr}
-	go func() {
-		<-ctx.Done()
-		httpSrv.Shutdown(context.Background())
-	}()
-	if listenErr := httpSrv.ListenAndServe(); listenErr != nil && listenErr != http.ErrServerClosed {
-		log.Fatal(listenErr)
+	if err := srv.ListenAddr(ctx); err != nil && err != context.Canceled {
+		log.Fatal(err)
 	}
 }
