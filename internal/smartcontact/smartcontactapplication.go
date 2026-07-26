@@ -98,3 +98,9 @@ func buildRouter() http.Handler {
 
 	return r
 }
+
+// BuildRouter is the exported entry point cmd/server/main.go calls to obtain
+// the fully-wired HTTP handler.
+func BuildRouter() http.Handler {
+	return buildRouter()
+}
