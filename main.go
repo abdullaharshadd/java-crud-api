@@ -28,7 +28,7 @@ func main() {
 	fmt.Printf("starting server on %s\n", addr)
 	go func() {
 		result := srv.ListenAddr()
-		if result != "" && result != context.Canceled.Error() {
+		if result != "" && result != context.Canceled.Error() && result != addr {
 			log.Println(result)
 		}
 		cancel()
