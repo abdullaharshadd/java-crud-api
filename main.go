@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -31,7 +32,17 @@ func main() {
 	}
 	fmt.Printf("starting server on %s\n", listenAddr)
 
-	if err := srv.Serve(ctx); err != nil && err != context.Canceled {
+	httpSrv := &http.Server{
+		Addr:    listenAddr,
+		Handler: http.DefaultServeMux,
+	}
+
+	go func() {
+		<-ctx.Done()
+		httpSrv.Shutdown(context.Background())
+	}()
+
+	if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
 }
