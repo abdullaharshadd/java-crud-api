@@ -8,7 +8,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -22,8 +21,6 @@ func buildRouter() http.Handler {
 }
 
 func main() {
-	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
-
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
