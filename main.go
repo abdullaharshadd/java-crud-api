@@ -25,8 +25,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	fmt.Printf("starting server on %s\n", addr)
-	if err := srv.ListenAddr(ctx); err != nil && err != context.Canceled {
+	listenAddr := srv.ListenAddr()
+	if listenAddr == "" {
+		listenAddr = addr
+	}
+	fmt.Printf("starting server on %s\n", listenAddr)
+
+	if err := srv.Serve(ctx); err != nil && err != context.Canceled {
 		log.Fatal(err)
 	}
 }
