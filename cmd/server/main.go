@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -21,11 +22,18 @@ func buildRouter() http.Handler {
 }
 
 func main() {
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + port,
 		Handler: buildRouter(),
 	}
 
@@ -35,7 +43,7 @@ func main() {
 		}
 	}()
 
-	log.Info().Msg("server started on :8080")
+	log.Info().Msgf("server started on :%s", port)
 	<-ctx.Done()
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
