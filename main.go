@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 
 	"migrated-app/internal/resources"
 	"migrated-app/internal/smartcontact"
@@ -25,14 +28,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	_ = cfg
+
+	db, err := sql.Open("mysql", cfg.BuildDSN())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: smartcontact.BuildRouter(),
+		Handler: smartcontact.BuildRouterWithDB(db),
 	}
 
 	go func() {
