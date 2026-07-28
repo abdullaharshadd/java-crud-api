@@ -33,9 +33,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	apperr "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/error/restresponseentityexceptionhandling"
-	"github.com/smartContact/internal/smartcontact/model"
+	apperr "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/error/restresponseentityexceptionhandling"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserService is the subset of the service-layer contract that the
