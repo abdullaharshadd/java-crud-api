@@ -24,8 +24,8 @@ import (
 	"errors"
 	"fmt"
 
-	smartcontacterror "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
+	smartcontacterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserRepository defines the persistence operations available for users.
