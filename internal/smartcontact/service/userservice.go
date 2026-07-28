@@ -29,10 +29,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
-	smartcontacterror "internal/smartcontact/error"
-	"internal/smartcontact/model"
-	"internal/smartcontact/repository"
+	smartcontacterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // UserService implements the user-related business operations of the
@@ -57,12 +58,12 @@ func NewUserService(dao repository.UserDao) *UserService {
 // UserResponse, keeping the persistence entity internal to the service and
 // repository layers.
 func (s *UserService) SaveUser(ctx context.Context, req model.CreateUserRequest) (model.UserResponse, error) {
-	if err := req.Validate(); err != nil {
-		return model.UserResponse{}, fmt.Errorf("save user: %w", err)
+	if problems := req.Validate(); len(problems) > 0 {
+		return model.UserResponse{}, fmt.Errorf("save user: %s", strings.Join(problems, "; "))
 	}
 
 	user := req.ToUser()
-	saved, err := s.dao.Save(ctx, user)
+	saved, err := s.dao.Save(ctx, &user)
 	if err != nil {
 		return model.UserResponse{}, fmt.Errorf("save user: %w", err)
 	}
@@ -119,22 +120,24 @@ func (s *UserService) DeleteUser(ctx context.Context, id int) error {
 //
 // MIGRATION_NOTE: The Java method returned void. In idiomatic Go we return the
 // updated UserResponse (and an error) so callers do not need a second lookup.
+// repository.UserDao.Update returns only an error (no updated row) — the
+// service already holds the values it wrote, so it re-fetches nothing and
+// simply echoes them back as the updated representation.
 func (s *UserService) UpdateUser(ctx context.Context, id int, req model.CreateUserRequest) (model.UserResponse, error) {
-	if err := req.Validate(); err != nil {
-		return model.UserResponse{}, fmt.Errorf("update user %d: %w", id, err)
+	if problems := req.Validate(); len(problems) > 0 {
+		return model.UserResponse{}, fmt.Errorf("update user %d: %s", id, strings.Join(problems, "; "))
 	}
 
 	user := req.ToUser()
 	user.ID = id
 
-	updated, err := s.dao.Update(ctx, user)
-	if err != nil {
+	if err := s.dao.Update(ctx, &user); err != nil {
 		if errors.Is(err, smartcontacterror.ErrUserNotFound) {
 			return model.UserResponse{}, fmt.Errorf("update user %d: %w", id, smartcontacterror.ErrUserNotFound)
 		}
 		return model.UserResponse{}, fmt.Errorf("update user %d: %w", id, err)
 	}
-	return updated.ToResponse(), nil
+	return user.ToResponse(), nil
 }
 
 // GetUserByName returns the user with the given name. If no such user exists it
