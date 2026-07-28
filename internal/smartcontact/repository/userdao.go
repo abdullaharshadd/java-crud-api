@@ -28,8 +28,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	apperror "github.com/smartcontact/internal/smartcontact/error"
-	"github.com/smartcontact/internal/smartcontact/model"
+	apperror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // Querier is the minimal database surface the UserRepository depends on. Both
