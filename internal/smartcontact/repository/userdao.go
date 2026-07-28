@@ -1,21 +1,3 @@
-// Package repository provides data-access implementations for the
-// smartContact application. It replaces the Spring Data JPA repository
-// interfaces with explicit database/sql-backed code.
-//
-// MIGRATION_NOTE: The Java source (UserDao) was a Spring Data JPA repository
-// interface that extended JpaRepository<User, Integer> and declared a single
-// derived query method, findByName. Spring generated the implementation at
-// runtime for both the inherited CRUD methods (findAll, findById, save, etc.)
-// and the derived finder. Go has no runtime proxy generation, so this file
-// provides a concrete UserDao backed by *sql.DB, implementing the CRUD
-// operations that the rest of the application actually uses plus the custom
-// FindByName finder.
-//
-// MIGRATION_NOTE: All read methods scan into an internal userRow using
-// sql.NullString to tolerate NULL columns (which previously caused
-// "converting NULL to string" 500 errors), then convert to model.UserResponse
-// via toResponse. Merge (the save/upsert) reuses the same userRow/toResponse
-// path for its post-write re-read rather than duplicating a converter.
 package repository
 
 import (
@@ -66,57 +48,50 @@ func NewUserDao(db *sql.DB) *UserDao {
 // compile-time assertion that *UserDao satisfies UserRepository.
 var _ UserRepository = (*UserDao)(nil)
 
-// userRow is the internal scan target for user reads. Nullable text columns
+// localUserRow is the internal scan target for user reads. Nullable text columns
 // use sql.NullString so that NULL values do not fail the scan.
 //
 // MIGRATION_NOTE: Table/column names follow the PostgreSQL lower_snake_case
 // convention established in model.User (users.id, name, email, etc.), so no
 // identifier quoting is required.
-type userRow struct {
-	id       int
-	name     sql.NullString
-	second   sql.NullString
-	work     sql.NullString
-	email    sql.NullString
-	phone    sql.NullString
-	image    sql.NullString
-	description sql.NullString
-	userName sql.NullString
-	password sql.NullString
+type localUserRow struct {
+	id    int
+	name  sql.NullString
+	email sql.NullString
+	role  sql.NullString
+	about sql.NullString
 }
 
 // selectColumns lists the columns read by every finder, in scan order.
-const selectColumns = "id, name, second_name, work, email, phone_number, image, description, user_name, password"
+const selectColumns = "id, name, email, role, about"
 
-// scan reads one row into a userRow.
-func (r *userRow) scan(row interface{ Scan(...any) error }) error {
+// scan reads one row into a localUserRow.
+func (r *localUserRow) scan(row interface{ Scan(...any) error }) error {
 	return row.Scan(
 		&r.id,
 		&r.name,
-		&r.second,
-		&r.work,
 		&r.email,
-		&r.phone,
-		&r.image,
-		&r.description,
-		&r.userName,
-		&r.password,
+		&r.role,
+		&r.about,
 	)
 }
 
-// toResponse converts an internal userRow into the shared wire shape
-// model.UserResponse, unwrapping sql.NullString into plain strings.
-func (r *userRow) toResponse() model.UserResponse {
+// toResponse converts an internal localUserRow into the shared wire shape
+// model.UserResponse, unwrapping sql.NullString into plain *string.
+func (r *localUserRow) toResponse() model.UserResponse {
+	nsToPtr := func(ns sql.NullString) *string {
+		if !ns.Valid {
+			return nil
+		}
+		s := ns.String
+		return &s
+	}
 	return model.UserResponse{
-		ID:          r.id,
-		Name:        r.name.String,
-		SecondName:  r.second.String,
-		Work:        r.work.String,
-		Email:       r.email.String,
-		PhoneNumber: r.phone.String,
-		Image:       r.image.String,
-		Description: r.description.String,
-		UserName:    r.userName.String,
+		ID:    r.id,
+		Name:  nsToPtr(r.name),
+		Email: nsToPtr(r.email),
+		Role:  nsToPtr(r.role),
+		About: nsToPtr(r.about),
 	}
 }
 
@@ -134,7 +109,7 @@ func (d *UserDao) FindAll(ctx context.Context) ([]model.UserResponse, error) {
 
 	var users []model.UserResponse
 	for rows.Next() {
-		var r userRow
+		var r localUserRow
 		if err := r.scan(rows); err != nil {
 			return nil, fmt.Errorf("repository: scan user row: %w", err)
 		}
@@ -155,7 +130,7 @@ func (d *UserDao) FindAll(ctx context.Context) ([]model.UserResponse, error) {
 func (d *UserDao) FindByID(ctx context.Context, id int) (model.UserResponse, error) {
 	const query = "SELECT " + selectColumns + " FROM users WHERE id = $1"
 
-	var r userRow
+	var r localUserRow
 	if err := r.scan(d.db.QueryRowContext(ctx, query, id)); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.UserResponse{}, smartcontacterror.NewUserNotFoundError(
@@ -177,7 +152,7 @@ func (d *UserDao) FindByID(ctx context.Context, id int) (model.UserResponse, err
 func (d *UserDao) FindByName(ctx context.Context, name string) (model.UserResponse, error) {
 	const query = "SELECT " + selectColumns + " FROM users WHERE name = $1"
 
-	var r userRow
+	var r localUserRow
 	if err := r.scan(d.db.QueryRowContext(ctx, query, name)); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.UserResponse{}, smartcontacterror.NewUserNotFoundError(
@@ -190,7 +165,7 @@ func (d *UserDao) FindByName(ctx context.Context, name string) (model.UserRespon
 }
 
 // Merge inserts a new user (when u.ID == 0) or updates an existing one, then
-// re-reads and returns the persisted row via the shared userRow/toResponse
+// re-reads and returns the persisted row via the shared localUserRow/toResponse
 // path.
 //
 // MIGRATION_NOTE: Replaces JpaRepository.save(entity), which performs an
@@ -200,14 +175,13 @@ func (d *UserDao) FindByName(ctx context.Context, name string) (model.UserRespon
 func (d *UserDao) Merge(ctx context.Context, u model.User) (model.UserResponse, error) {
 	if u.ID == 0 {
 		const insert = `INSERT INTO users
-			(name, second_name, work, email, phone_number, image, description, user_name, password)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			(name, email, password, role, about)
+			VALUES ($1, $2, $3, $4, $5)
 			RETURNING id`
 
 		var id int
 		err := d.db.QueryRowContext(ctx, insert,
-			u.Name, u.SecondName, u.Work, u.Email, u.PhoneNumber,
-			u.Image, u.Description, u.UserName, u.Password,
+			u.Name, u.Email, u.Password, u.Role, u.About,
 		).Scan(&id)
 		if err != nil {
 			return model.UserResponse{}, fmt.Errorf("repository: insert user: %w", err)
@@ -217,19 +191,14 @@ func (d *UserDao) Merge(ctx context.Context, u model.User) (model.UserResponse, 
 
 	const update = `UPDATE users SET
 		name = $1,
-		second_name = $2,
-		work = $3,
-		email = $4,
-		phone_number = $5,
-		image = $6,
-		description = $7,
-		user_name = $8,
-		password = $9
-		WHERE id = $10`
+		email = $2,
+		password = $3,
+		role = $4,
+		about = $5
+		WHERE id = $6`
 
 	res, err := d.db.ExecContext(ctx, update,
-		u.Name, u.SecondName, u.Work, u.Email, u.PhoneNumber,
-		u.Image, u.Description, u.UserName, u.Password, u.ID,
+		u.Name, u.Email, u.Password, u.Role, u.About, u.ID,
 	)
 	if err != nil {
 		return model.UserResponse{}, fmt.Errorf("repository: update user %d: %w", u.ID, err)
