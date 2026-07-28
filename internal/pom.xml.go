@@ -59,7 +59,7 @@
 // ----------------------------------------------------------------------------
 // Suggested go.mod (create at the repository root, not in this file):
 //
-//   module github.com/smartcontact/smartcontact
+//   module migrated-app/smartcontact
 //
 //   go 1.23
 //
