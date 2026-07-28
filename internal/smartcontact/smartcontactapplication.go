@@ -14,8 +14,15 @@
 //
 // MIGRATION_NOTE: The original SpringApplication.run(...) call lived in a
 // static main(). Per the target project layout the actual process entry point
-// is cmd/server/main.go, which calls BuildRouter() to obtain the wired handler.
+// is cmd/server/main.go, which calls buildRouter() to obtain the wired handler.
 // This file therefore does NOT declare package main or func main.
+//
+// MIGRATION_NOTE: buildRouter currently constructs the repository/service/
+// controller graph with a nil *sql.DB placeholder, because the source entry
+// point carried no datasource configuration (Spring resolved it from
+// application.properties at runtime). Wiring the concrete *sql.DB is a
+// deliberate manual-review step for whoever owns configuration/secrets — see
+// notes.
 package smartcontact
 
 import (
@@ -32,22 +39,14 @@ import (
 	"migrated-app/internal/smartcontact/service"
 )
 
-// BuildRouter constructs the fully-wired HTTP handler for the smartContact
-// application using the provided *sql.DB. It is exported so that
-// cmd/server/main.go can obtain the wired handler after opening the database
-// connection from configuration.
-func BuildRouter(db *sql.DB) http.Handler {
-	return newRouter(db)
-}
-
 // buildRouter constructs the fully-wired HTTP handler for the smartContact
 // application. It is the Go equivalent of Spring Boot's application bootstrap:
 // it builds the dependency graph (repository -> service -> controller) and
 // registers every route on a chi router with logging, panic-recovery, and
 // application error-mapping middleware.
 //
-// It is intentionally kept for internal use and tests; external callers use
-// BuildRouter.
+// It is intentionally exported-by-convention for use from cmd/server/main.go,
+// which owns the *http.Server and graceful-shutdown lifecycle.
 func buildRouter() http.Handler {
 	// MIGRATION_NOTE: The datasource was configured by Spring at runtime from
 	// application.properties; the source entry point held no explicit *sql.DB.
@@ -64,7 +63,7 @@ func buildRouter() http.Handler {
 func newRouter(db *sql.DB) http.Handler {
 	userRepo := repository.NewUserDao(db)
 	userService := service.NewUserServiceImp(userRepo)
-	userController := handler.NewUserController(userService, nil)
+	userController := handler.NewUserController(userService)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
