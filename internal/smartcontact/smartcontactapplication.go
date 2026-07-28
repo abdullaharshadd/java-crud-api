@@ -1,6 +1,7 @@
 package smartcontact
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	apperror "migrated-app/internal/smartcontact/error/restresponseentityexceptionhandling"
 	"migrated-app/internal/smartcontact/handler"
+	"migrated-app/internal/smartcontact/model"
 	"migrated-app/internal/smartcontact/repository"
 	"migrated-app/internal/smartcontact/service"
 )
@@ -39,9 +41,8 @@ func newRouter(db *sql.DB) http.Handler {
 	userRepo := repository.NewUserDao(db)
 	userService := service.NewUserServiceImp(userRepo)
 
-	// The handler.UserService interface uses a different signature than
-	// service.UserService (goerror vs error return types). We adapt with a
-	// thin wrapper so *UserServiceImp satisfies handler.UserService.
+	// The handler.UserService interface uses goerror return types while
+	// service.UserServiceImp uses error. We adapt with a thin wrapper.
 	userController := handler.NewUserController(&userServiceAdapter{userService}, nil)
 
 	r := chi.NewRouter()
@@ -71,14 +72,30 @@ func newRouter(db *sql.DB) http.Handler {
 // Both error and goerror are structurally identical interfaces, but Go's type
 // system requires an explicit adapter when the declared return types differ.
 type userServiceAdapter struct {
-	impl *service.UserServiceImp
+	impl service.UserService
 }
 
-func (a *userServiceAdapter) SaveUser(ctx interface{ Done() <-chan struct{}; Err() error; Value(interface{}) interface{} }, user interface{}) (interface{}, interface{ Error() string }) {
-	// This approach won't work — use context.Context directly via blank import.
-	return nil, nil
+func (a *userServiceAdapter) SaveUser(ctx context.Context, user model.User) error {
+	_, err := a.impl.SaveUser(ctx, user)
+	return err
 }
 
-// We need to use the actual types. Re-declare with proper imports.
-// The adapter is defined below with the correct method signatures matching
-// handler.UserService exactly.
+func (a *userServiceAdapter) FetchUserList(ctx context.Context) ([]model.UserResponse, error) {
+	return a.impl.FetchUserList(ctx)
+}
+
+func (a *userServiceAdapter) FetchUserByID(ctx context.Context, id int) (model.UserResponse, error) {
+	return a.impl.FetchUserByID(ctx, id)
+}
+
+func (a *userServiceAdapter) DeleteUser(ctx context.Context, id int) error {
+	return a.impl.DeleteUser(ctx, id)
+}
+
+func (a *userServiceAdapter) UpdateUser(ctx context.Context, id int, user model.User) error {
+	return a.impl.UpdateUser(ctx, id, user)
+}
+
+func (a *userServiceAdapter) GetUserByName(ctx context.Context, name string) (model.UserResponse, error) {
+	return a.impl.GetUserByName(ctx, name)
+}
