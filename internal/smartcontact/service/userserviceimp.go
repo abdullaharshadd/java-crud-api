@@ -26,7 +26,7 @@ package service
 import (
 	"context"
 
-	"migrated-app/internal/smartcontact/model"
+	"github.com/smartcontact/internal/smartcontact/model"
 )
 
 // UserServicer describes the behaviour originally declared by the Java
