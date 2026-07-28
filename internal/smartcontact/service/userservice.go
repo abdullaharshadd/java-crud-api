@@ -25,9 +25,9 @@ import (
 	"errors"
 	"fmt"
 
-	apperror "github.com/smartcontact/internal/smartcontact/error"
-	"github.com/smartcontact/internal/smartcontact/model"
-	"github.com/smartcontact/internal/smartcontact/repository"
+	apperror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // UserService is the service-layer contract for user management operations.
