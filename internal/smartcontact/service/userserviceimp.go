@@ -25,9 +25,9 @@ import (
 	"context"
 	"fmt"
 
-	smartcontacterror "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/repository"
+	smartcontacterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // UserServiceImp is the concrete implementation of the UserService interface.
