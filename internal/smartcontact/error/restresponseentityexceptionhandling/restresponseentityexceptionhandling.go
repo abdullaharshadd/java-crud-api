@@ -24,7 +24,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // WriteError inspects err, selects the appropriate HTTP status code, and writes
