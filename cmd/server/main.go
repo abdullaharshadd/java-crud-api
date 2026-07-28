@@ -13,7 +13,6 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"migrated-app/internal/resources"
-	smartcontact "migrated-app/internal/smartcontact"
 )
 
 func main() {
@@ -35,9 +34,14 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to run migrations")
 	}
 
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.ServerPort),
-		Handler: smartcontact.BuildRouter(db),
+		Handler: mux,
 	}
 
 	go func() {
