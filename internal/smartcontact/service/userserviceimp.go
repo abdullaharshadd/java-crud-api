@@ -24,8 +24,8 @@ import (
 	"context"
 	"fmt"
 
-	apperror "github.com/smartcontact/internal/smartcontact/error"
-	"github.com/smartcontact/internal/smartcontact/model"
+	apperror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // GetUserByName returns the single user whose name matches the supplied value.
@@ -39,16 +39,3 @@ import (
 // This method is declared on *userService, the concrete type defined in
 // userservice.go. If that file already provides GetUserByName, remove this
 // method to avoid a duplicate declaration.
-func (s *userService) GetUserByName(ctx context.Context, name string) (*model.User, error) {
-	user, err := s.repo.FindByName(ctx, name)
-	if err != nil {
-		if apperror.IsUserNotFound(err) {
-			return nil, err
-		}
-		return nil, fmt.Errorf("get user by name %q: %w", name, err)
-	}
-	if user == nil {
-		return nil, apperror.NewUserNotFoundErrorf("user with name %q not found", name)
-	}
-	return user, nil
-}
