@@ -20,7 +20,7 @@ import (
 	"errors"
 	"net/http"
 
-	smarterror "migrated-app/internal/smartcontact/error"
+	smarterror "github.com/smartContact/internal/smartcontact/error"
 )
 
 // ErrorMessage is the JSON body returned to clients when a request fails. It
