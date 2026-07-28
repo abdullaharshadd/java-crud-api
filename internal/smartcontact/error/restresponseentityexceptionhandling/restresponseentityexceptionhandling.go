@@ -1,22 +1,3 @@
-// Package error provides application-specific error types and the HTTP
-// error-handling middleware for the smartContact application.
-//
-// MIGRATION_NOTE: The Java source (RestResponseEntityExceptionHandling) was a
-// Spring @ControllerAdvice class extending ResponseEntityExceptionHandler. It
-// centralized exception-to-HTTP-response mapping across all controllers via
-// AOP-style interception. Go has no equivalent runtime interception or class
-// inheritance, so the idiomatic replacement is an HTTP middleware plus an
-// explicit error-writing helper. Handlers signal a UserNotFoundError up the
-// call stack (via panic-recovery here, or by returning it and calling
-// WriteError directly) and this code translates it into a structured 404
-// response, mirroring the original @ExceptionHandler(UserNotFoundException).
-//
-// MIGRATION_NOTE: The inherited ResponseEntityExceptionHandler behaviour
-// (default handling of standard Spring MVC exceptions such as validation and
-// message-not-readable errors) has no direct Go analogue. Only the explicit
-// UserNotFoundException mapping is preserved; other errors fall through to a
-// generic 500 response. Extend WriteError as additional error types are
-// migrated.
 package error
 
 import (
@@ -26,6 +7,10 @@ import (
 
 	"migrated-app/internal/smartcontact/model"
 )
+
+// ErrUserNotFound is the sentinel error for a user-not-found condition.
+// It mirrors the Java UserNotFoundException and is used by errors.Is checks.
+var ErrUserNotFound = errors.New("user not found")
 
 // WriteError inspects err, selects the appropriate HTTP status code, and writes
 // a structured model.ErrorMessage JSON body to w. It returns the status code
