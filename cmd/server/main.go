@@ -63,6 +63,20 @@ func buildRouter(db *sqlx.DB) http.Handler {
 	return r
 }
 
+func connectWithRetry(dsn string, maxRetries int, delay time.Duration) (*sqlx.DB, error) {
+	var db *sqlx.DB
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		db, err = sqlx.Connect("postgres", dsn)
+		if err == nil {
+			return db, nil
+		}
+		log.Warn().Err(err).Msgf("failed to connect to database, retrying in %s (%d/%d)", delay, i+1, maxRetries)
+		time.Sleep(delay)
+	}
+	return nil, err
+}
+
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -72,7 +86,7 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
-	db, err := sqlx.Connect("postgres", cfg.DatabaseURL)
+	db, err := connectWithRetry(cfg.DatabaseURL, 10, 3*time.Second)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
