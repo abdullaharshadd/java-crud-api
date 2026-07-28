@@ -29,33 +29,34 @@ import (
 	errs "errors"
 	"net/http"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	smarterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // statusForError maps an application error onto the HTTP status code that best
 // represents it. This is the Go equivalent of Spring's @ExceptionHandler
-// type-to-status mapping. New error categories should be added here.
+// type-to-status mapping. Used by Recoverer, which has no caller-supplied
+// status to work from (a panic, unlike a returned error, carries no HTTP
+// intent) — ordinary handler errors go through WriteError with an explicit
+// status instead. New error categories should be added here.
 func statusForError(err error) int {
 	switch {
-	case errs.Is(err, ErrUserNotFound):
+	case errs.Is(err, smarterror.ErrUserNotFound):
 		return http.StatusNotFound
 	default:
 		return http.StatusInternalServerError
 	}
 }
 
-// WriteError inspects err, selects an appropriate HTTP status code and writes a
-// unified ErrorMessage JSON body to w. It is the idiomatic replacement for the
-// Spring @ExceptionHandler methods: callers (HTTP handlers) invoke it instead
-// of throwing an exception for Spring to intercept.
-//
-// The original handler mapped UserNotFoundException -> 404 with the exception
-// message; that behaviour is preserved via statusForError and the message
-// carried by err.
-func WriteError(w http.ResponseWriter, err error) {
-	status := statusForError(err)
-
-	msg := model.NewErrorMessageFromError(status, err)
+// WriteError writes a unified ErrorMessage JSON body to w using the given
+// status and err. It is the idiomatic replacement for the Spring
+// @ExceptionHandler methods: HTTP handlers already know which status an error
+// maps to (e.g. http.StatusNotFound for a missing resource) and pass it
+// explicitly, rather than this helper re-deriving it from the error alone.
+// r is accepted (and currently unused) to match request-scoped error writers
+// elsewhere and leave room for request-context logging.
+func WriteError(w http.ResponseWriter, r *http.Request, status int, err error) {
+	msg := model.NewErrorMessage(status, err.Error())
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
@@ -88,7 +89,7 @@ func Recoverer(next http.Handler) http.Handler {
 				default:
 					err = errs.New(http.StatusText(http.StatusInternalServerError))
 				}
-				WriteError(w, err)
+				WriteError(w, r, statusForError(err), err)
 			}
 		}()
 
