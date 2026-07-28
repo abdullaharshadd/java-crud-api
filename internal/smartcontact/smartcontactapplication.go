@@ -25,7 +25,9 @@ func newRouter(db *sql.DB) http.Handler {
 	userRepo := repository.NewUserDao(db)
 	userService := service.NewUserServiceImp(userRepo)
 
-	userController := handler.NewUserController(&userServiceAdapter{userService}, nil)
+	adapted := &userServiceAdapter{impl: userService}
+	var svc handler.UserService = adapted
+	userController := handler.NewUserController(svc, nil)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
@@ -42,36 +44,54 @@ func newRouter(db *sql.DB) http.Handler {
 	return r
 }
 
-// userServiceAdapter adapts service.UserService (which returns error) to
-// handler.UserService (which uses goerror = interface{ Error() string }).
-// Because goerror is a type alias for the error interface, both are structurally
-// identical, but Go requires the declared return types to match exactly when
-// satisfying an interface. The adapter bridges this gap.
 type userServiceAdapter struct {
 	impl service.UserService
 }
 
-func (a *userServiceAdapter) SaveUser(ctx context.Context, user model.User) error {
+func (a *userServiceAdapter) SaveUser(ctx context.Context, user model.User) interface{ Error() string } {
 	_, err := a.impl.SaveUser(ctx, user)
+	if err == nil {
+		return nil
+	}
 	return err
 }
 
-func (a *userServiceAdapter) FetchUserList(ctx context.Context) ([]model.UserResponse, error) {
-	return a.impl.FetchUserList(ctx)
+func (a *userServiceAdapter) FetchUserList(ctx context.Context) ([]model.UserResponse, interface{ Error() string }) {
+	res, err := a.impl.FetchUserList(ctx)
+	if err == nil {
+		return res, nil
+	}
+	return res, err
 }
 
-func (a *userServiceAdapter) FetchUserByID(ctx context.Context, id int) (model.UserResponse, error) {
-	return a.impl.FetchUserByID(ctx, id)
+func (a *userServiceAdapter) FetchUserByID(ctx context.Context, id int) (model.UserResponse, interface{ Error() string }) {
+	res, err := a.impl.FetchUserByID(ctx, id)
+	if err == nil {
+		return res, nil
+	}
+	return res, err
 }
 
-func (a *userServiceAdapter) DeleteUser(ctx context.Context, id int) error {
-	return a.impl.DeleteUser(ctx, id)
+func (a *userServiceAdapter) DeleteUser(ctx context.Context, id int) interface{ Error() string } {
+	err := a.impl.DeleteUser(ctx, id)
+	if err == nil {
+		return nil
+	}
+	return err
 }
 
-func (a *userServiceAdapter) UpdateUser(ctx context.Context, id int, user model.User) error {
-	return a.impl.UpdateUser(ctx, id, user)
+func (a *userServiceAdapter) UpdateUser(ctx context.Context, id int, user model.User) interface{ Error() string } {
+	err := a.impl.UpdateUser(ctx, id, user)
+	if err == nil {
+		return nil
+	}
+	return err
 }
 
-func (a *userServiceAdapter) GetUserByName(ctx context.Context, name string) (model.UserResponse, error) {
-	return a.impl.GetUserByName(ctx, name)
+func (a *userServiceAdapter) GetUserByName(ctx context.Context, name string) (model.UserResponse, interface{ Error() string }) {
+	res, err := a.impl.GetUserByName(ctx, name)
+	if err == nil {
+		return res, nil
+	}
+	return res, err
 }
