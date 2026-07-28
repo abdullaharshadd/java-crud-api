@@ -30,7 +30,7 @@ package service
 import (
 	"context"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserService defines the business-logic contract for User CRUD operations.
