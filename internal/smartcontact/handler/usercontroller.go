@@ -17,17 +17,19 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
-	smarterr "internal/smartcontact/error"
-	"internal/smartcontact/error/restresponseentityexceptionhandling"
-	"internal/smartcontact/model"
+	smarterr "migrated-app/internal/smartcontact/error"
+	resterr "migrated-app/internal/smartcontact/error/restresponseentityexceptionhandling"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserServicer is the narrow interface the handler depends on. Defining it at
@@ -35,20 +37,23 @@ import (
 // keeps the handler decoupled and trivially mockable in tests.
 //
 // MIGRATION_NOTE: This mirrors the Java UserService contract, but only the
-// methods this controller actually calls are declared here.
+// methods this controller actually calls are declared here. Signatures match
+// service.UserService exactly: context.Context (not *http.Request — the
+// service layer has no transport dependency) and model.UserResponse (the
+// service's password-omitting DTO, not the internal model.User).
 type UserServicer interface {
 	// SaveUser validates and persists a new user.
-	SaveUser(r *http.Request, req model.CreateUserRequest) (model.User, error)
+	SaveUser(ctx context.Context, req model.CreateUserRequest) (model.UserResponse, error)
 	// FetchUserList returns all users.
-	FetchUserList(r *http.Request) ([]model.User, error)
+	FetchUserList(ctx context.Context) ([]model.UserResponse, error)
 	// FetchUserByID returns a single user by id, or ErrUserNotFound.
-	FetchUserByID(r *http.Request, id int) (model.User, error)
+	FetchUserByID(ctx context.Context, id int) (model.UserResponse, error)
 	// DeleteUser removes a user by id.
-	DeleteUser(r *http.Request, id int) error
+	DeleteUser(ctx context.Context, id int) error
 	// UpdateUser updates a user by id and returns the updated user.
-	UpdateUser(r *http.Request, id int, req model.CreateUserRequest) (model.User, error)
+	UpdateUser(ctx context.Context, id int, req model.CreateUserRequest) (model.UserResponse, error)
 	// GetUserByName returns a user matched by name, or ErrUserNotFound.
-	GetUserByName(r *http.Request, name string) (model.User, error)
+	GetUserByName(ctx context.Context, name string) (model.UserResponse, error)
 }
 
 // UserController holds the dependencies needed to serve user endpoints.
@@ -87,15 +92,15 @@ func (c *UserController) SaveUser(w http.ResponseWriter, r *http.Request) {
 
 	var req model.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusBadRequest, err)
+		resterr.WriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
-	if err := req.Validate(); err != nil {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusBadRequest, err)
+	if problems := req.Validate(); len(problems) > 0 {
+		resterr.WriteError(w, r, http.StatusBadRequest, errors.New(strings.Join(problems, "; ")))
 		return
 	}
 
-	if _, err := c.svc.SaveUser(r, req); err != nil {
+	if _, err := c.svc.SaveUser(r.Context(), req); err != nil {
 		c.mapErr(w, r, err)
 		return
 	}
@@ -108,15 +113,10 @@ func (c *UserController) SaveUser(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) FetchUserList(w http.ResponseWriter, r *http.Request) {
 	c.logger.Info("inside the fetchUserList of UserController")
 
-	users, err := c.svc.FetchUserList(r)
+	responses, err := c.svc.FetchUserList(r.Context())
 	if err != nil {
 		c.mapErr(w, r, err)
 		return
-	}
-
-	responses := make([]model.UserResponse, 0, len(users))
-	for _, u := range users {
-		responses = append(responses, u.ToResponse())
 	}
 
 	writeJSON(w, http.StatusOK, responses)
@@ -127,17 +127,17 @@ func (c *UserController) FetchUserList(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusBadRequest, err)
+		resterr.WriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	user, err := c.svc.FetchUserByID(r, id)
+	user, err := c.svc.FetchUserByID(r.Context(), id)
 	if err != nil {
 		c.mapErr(w, r, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, user.ToResponse())
+	writeJSON(w, http.StatusOK, user)
 }
 
 // DeleteUser handles DELETE /delete_user_data/{id}. It deletes a user by id and
@@ -145,11 +145,11 @@ func (c *UserController) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusBadRequest, err)
+		resterr.WriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	if err := c.svc.DeleteUser(r, id); err != nil {
+	if err := c.svc.DeleteUser(r.Context(), id); err != nil {
 		c.mapErr(w, r, err)
 		return
 	}
@@ -166,23 +166,23 @@ func (c *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id, err := pathID(r)
 	if err != nil {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusBadRequest, err)
+		resterr.WriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
 	var req model.CreateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusBadRequest, err)
+		resterr.WriteError(w, r, http.StatusBadRequest, err)
 		return
 	}
 
-	user, err := c.svc.UpdateUser(r, id, req)
+	user, err := c.svc.UpdateUser(r.Context(), id, req)
 	if err != nil {
 		c.mapErr(w, r, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, user.ToResponse())
+	writeJSON(w, http.StatusOK, user)
 }
 
 // GetUserByName handles GET /get_user_name/name/{name}. It returns a user
@@ -190,13 +190,13 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) GetUserByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
-	user, err := c.svc.GetUserByName(r, name)
+	user, err := c.svc.GetUserByName(r.Context(), name)
 	if err != nil {
 		c.mapErr(w, r, err)
 		return
 	}
 
-	writeJSON(w, http.StatusOK, user.ToResponse())
+	writeJSON(w, http.StatusOK, user)
 }
 
 // mapErr translates a service-layer error into an HTTP response.
@@ -204,11 +204,11 @@ func (c *UserController) GetUserByName(w http.ResponseWriter, r *http.Request) {
 // everything else maps to 500.
 func (c *UserController) mapErr(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.Is(err, smarterr.ErrUserNotFound) {
-		restresponseentityexceptionhandling.WriteError(w, r, http.StatusNotFound, err)
+		resterr.WriteError(w, r, http.StatusNotFound, err)
 		return
 	}
 	c.logger.Error("unexpected error handling request", slog.String("err", err.Error()))
-	restresponseentityexceptionhandling.WriteError(w, r, http.StatusInternalServerError, err)
+	resterr.WriteError(w, r, http.StatusInternalServerError, err)
 }
 
 // pathID extracts and parses the {id} path parameter.
