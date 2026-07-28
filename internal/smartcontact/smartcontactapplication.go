@@ -32,9 +32,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/smartContact/internal/smartcontact/handler"
-	"github.com/smartContact/internal/smartcontact/repository"
-	"github.com/smartContact/internal/smartcontact/service"
+	"migrated-app/internal/smartcontact/handler"
+	"migrated-app/internal/smartcontact/repository"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // buildRouter constructs the fully-wired HTTP handler for the SmartContact
