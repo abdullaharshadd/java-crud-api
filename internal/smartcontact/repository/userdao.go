@@ -20,7 +20,10 @@
 // LastInsertId() for the Postgres drivers).
 //
 // Column/table names follow the lower_snake_case mapping established in
-// model.User's db tags, so no identifier quoting is required.
+// model.User's db tags (user_id, user_name, user_email, user_password,
+// user_role, user_about) — there is no "phone" column or field on model.User;
+// an earlier draft of this file referenced one that never matched the actual
+// model and never compiled.
 package repository
 
 import (
@@ -31,8 +34,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	smartcontacterror "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
+	smartcontacterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserDao describes the persistence operations available for the User entity.
@@ -88,15 +91,14 @@ func (d *userDao) Save(ctx context.Context, u *model.User) (*model.User, error) 
 	}
 
 	const query = `
-		INSERT INTO users (name, email, phone)
-		VALUES ($1, $2, $3)
-		RETURNING id`
+		INSERT INTO users (user_name, user_email, user_password, user_role, user_about)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING user_id`
 
-	// MIGRATION_NOTE: The column list (name, email, phone) must be verified
-	// against the real schema and against model.User's db tags. Adjust the
-	// columns and scan targets below if the entity carries additional fields.
 	var id int
-	if err := d.db.QueryRowxContext(ctx, query, u.Name, u.Email, u.Phone).Scan(&id); err != nil {
+	if err := d.db.QueryRowxContext(
+		ctx, query, u.Name, u.Email, u.Password, u.Role, u.About,
+	).Scan(&id); err != nil {
 		return nil, fmt.Errorf("repository: save user: %w", err)
 	}
 	u.ID = id
@@ -111,10 +113,12 @@ func (d *userDao) Update(ctx context.Context, u *model.User) error {
 
 	const query = `
 		UPDATE users
-		SET name = $1, email = $2, phone = $3
-		WHERE id = $4`
+		SET user_name = $1, user_email = $2, user_password = $3, user_role = $4, user_about = $5
+		WHERE user_id = $6`
 
-	res, err := d.db.ExecContext(ctx, query, u.Name, u.Email, u.Phone, u.ID)
+	res, err := d.db.ExecContext(
+		ctx, query, u.Name, u.Email, u.Password, u.Role, u.About, u.ID,
+	)
 	if err != nil {
 		return fmt.Errorf("repository: update user %d: %w", u.ID, err)
 	}
@@ -133,9 +137,9 @@ func (d *userDao) Update(ctx context.Context, u *model.User) error {
 // FindByID returns the user with the given identifier.
 func (d *userDao) FindByID(ctx context.Context, id int) (*model.User, error) {
 	const query = `
-		SELECT id, name, email, phone
+		SELECT user_id, user_name, user_email, user_password, user_role, user_about
 		FROM users
-		WHERE id = $1`
+		WHERE user_id = $1`
 
 	var u model.User
 	if err := d.db.GetContext(ctx, &u, query, id); err != nil {
@@ -150,9 +154,9 @@ func (d *userDao) FindByID(ctx context.Context, id int) (*model.User, error) {
 // FindAll returns every user, ordered by id for stable output.
 func (d *userDao) FindAll(ctx context.Context) ([]model.User, error) {
 	const query = `
-		SELECT id, name, email, phone
+		SELECT user_id, user_name, user_email, user_password, user_role, user_about
 		FROM users
-		ORDER BY id`
+		ORDER BY user_id`
 
 	var users []model.User
 	if err := d.db.SelectContext(ctx, &users, query); err != nil {
@@ -168,13 +172,13 @@ func (d *userDao) FindAll(ctx context.Context) ([]model.User, error) {
 // ErrUserNotFound when there is no match. If name is not unique in the real
 // schema, this query would return an arbitrary row without an ORDER BY — the
 // ordering key MUST be confirmed against the actual schema during review. An
-// explicit `ORDER BY id LIMIT 1` is applied so behaviour is deterministic.
+// explicit `ORDER BY user_id LIMIT 1` is applied so behaviour is deterministic.
 func (d *userDao) FindByName(ctx context.Context, name string) (*model.User, error) {
 	const query = `
-		SELECT id, name, email, phone
+		SELECT user_id, user_name, user_email, user_password, user_role, user_about
 		FROM users
-		WHERE name = $1
-		ORDER BY id
+		WHERE user_name = $1
+		ORDER BY user_id
 		LIMIT 1`
 
 	var u model.User
@@ -189,7 +193,7 @@ func (d *userDao) FindByName(ctx context.Context, name string) (*model.User, err
 
 // DeleteByID removes the user with the given identifier.
 func (d *userDao) DeleteByID(ctx context.Context, id int) error {
-	const query = `DELETE FROM users WHERE id = $1`
+	const query = `DELETE FROM users WHERE user_id = $1`
 
 	res, err := d.db.ExecContext(ctx, query, id)
 	if err != nil {
