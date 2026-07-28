@@ -20,6 +20,24 @@ import (
 	"migrated-app/internal/smartcontact/service"
 )
 
+// schemaSQL creates the users table if it doesn't already exist.
+//
+// MIGRATION_NOTE: The Java source used
+// spring.jpa.hibernate.ddl-auto=update, which auto-created/updated the
+// schema from the JPA entity at boot. Go's sqlx has no ORM-driven schema
+// sync, so this replaces that auto-DDL with an explicit, idempotent
+// CREATE TABLE IF NOT EXISTS matching model.User's db tags exactly
+// (user_id/user_name/user_email/user_password/user_role/user_about).
+const schemaSQL = `
+CREATE TABLE IF NOT EXISTS users (
+	user_id        SERIAL PRIMARY KEY,
+	user_name      VARCHAR(255) NOT NULL,
+	user_email     VARCHAR(255) NOT NULL,
+	user_password  VARCHAR(255) NOT NULL,
+	user_role      VARCHAR(255) NOT NULL,
+	user_about     VARCHAR(500) NOT NULL DEFAULT ''
+)`
+
 // buildRouter wires the full HTTP handler: chi router with base middleware,
 // the composition root's own routes (health check), and every migrated
 // controller's real handlers.
@@ -59,6 +77,10 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 	defer db.Close()
+
+	if _, err := db.Exec(schemaSQL); err != nil {
+		log.Fatal().Err(err).Msg("failed to apply schema")
+	}
 
 	srv := &http.Server{
 		Addr:    ":" + cfg.Port,
