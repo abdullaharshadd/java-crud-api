@@ -1,28 +1,3 @@
-// Package smartcontact is the composition root for the smartContact
-// application. It wires together the persistence, service, and HTTP handler
-// layers and exposes a fully-configured http.Handler via buildRouter.
-//
-// MIGRATION_NOTE: The Java source (SmartContactApplication) was the Spring Boot
-// entry point annotated with @SpringBootApplication. Spring performed component
-// scanning, auto-configuration, dependency injection, and embedded-server
-// bootstrap implicitly. Go has none of that magic, so this file makes the
-// wiring explicit:
-//   - Component scanning / @Autowired      -> manual constructor injection.
-//   - @EnableAutoConfiguration + Tomcat    -> chi.Router built here and served
-//                                             by cmd/server/main.go.
-//   - @ControllerAdvice exception mapping  -> RecoverMiddleware + WriteError.
-//
-// MIGRATION_NOTE: The original SpringApplication.run(...) call lived in a
-// static main(). Per the target project layout the actual process entry point
-// is cmd/server/main.go, which calls buildRouter() to obtain the wired handler.
-// This file therefore does NOT declare package main or func main.
-//
-// MIGRATION_NOTE: buildRouter currently constructs the repository/service/
-// controller graph with a nil *sql.DB placeholder, because the source entry
-// point carried no datasource configuration (Spring resolved it from
-// application.properties at runtime). Wiring the concrete *sql.DB is a
-// deliberate manual-review step for whoever owns configuration/secrets — see
-// notes.
 package smartcontact
 
 import (
@@ -63,7 +38,7 @@ func buildRouter() http.Handler {
 func newRouter(db *sql.DB) http.Handler {
 	userRepo := repository.NewUserDao(db)
 	userService := service.NewUserServiceImp(userRepo)
-	userController := handler.NewUserController(userService)
+	userController := handler.NewUserController(userService, db)
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
