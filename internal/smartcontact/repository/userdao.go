@@ -31,8 +31,8 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	smartcontacterror "migrated-app/internal/smartcontact/error"
-	"migrated-app/internal/smartcontact/model"
+	smartcontacterror "github.com/smartContact/internal/smartcontact/error"
+	"github.com/smartContact/internal/smartcontact/model"
 )
 
 // UserDao describes the persistence operations available for the User entity.
