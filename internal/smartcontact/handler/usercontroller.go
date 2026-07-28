@@ -11,11 +11,10 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	apperr "migrated-app/internal/smartcontact/error"
-	"migrated-app/internal/smartcontact/error/restresponseentityexceptionhandling"
 	"migrated-app/internal/smartcontact/model"
 )
 
-type goerror = error
+type goerror = interface{ Error() string }
 
 type UserService interface {
 	SaveUser(ctx context.Context, user model.User) goerror
@@ -158,13 +157,19 @@ func (c *UserController) GetUserByName(w http.ResponseWriter, r *http.Request) {
 func (c *UserController) handleServiceError(w http.ResponseWriter, r *http.Request, err goerror) {
 	var notFound *apperr.UserNotFoundError
 	if errors.As(err, &notFound) {
-		restresponseentityexceptionhandling.WriteError(w, r, err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  http.StatusNotFound,
+			"error":   "Not Found",
+			"message": err.Error(),
+		})
 		return
 	}
 
 	c.logger.Error("unexpected error handling request", slog.String("error", err.Error()))
 	writeJSON(w, http.StatusInternalServerError,
-		model.NewErrorMessage(http.StatusInternalServerError, model.StatusText(http.StatusInternalServerError), err.Error()))
+		model.NewErrorMessage(http.StatusInternalServerError, err.Error()))
 }
 
 func pathID(r *http.Request) (int, goerror) {
@@ -208,5 +213,5 @@ func writeText(w http.ResponseWriter, status int, msg string) {
 
 func writeBadRequest(w http.ResponseWriter, err goerror) {
 	writeJSON(w, http.StatusBadRequest,
-		model.NewErrorMessage(http.StatusBadRequest, model.StatusText(http.StatusBadRequest), err.Error()))
+		model.NewErrorMessage(http.StatusBadRequest, err.Error()))
 }
