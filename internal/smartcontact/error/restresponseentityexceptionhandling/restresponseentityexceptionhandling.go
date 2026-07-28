@@ -29,7 +29,7 @@ import (
 	errs "errors"
 	"net/http"
 
-	"migrated-app/internal/smartcontact/model"
+	"github.com/smartContact/internal/smartcontact/model"
 )
 
 // statusForError maps an application error onto the HTTP status code that best
