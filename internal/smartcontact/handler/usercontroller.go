@@ -1,26 +1,3 @@
-// Package handler contains the HTTP handlers for the smartContact
-// application. It is the presentation layer that translates HTTP requests into
-// service-layer calls and marshals the results back into HTTP responses.
-//
-// MIGRATION_NOTE: The Java source was a Spring @RestController (UserController)
-// that relied on annotation-driven routing (@GetMapping / @PostMapping / etc.),
-// automatic JSON (de)serialization, @Valid bean validation, @PathVariable /
-// @RequestBody binding, and a global @ControllerAdvice for exception mapping.
-// Go has no annotation-driven routing or AOP, so:
-//   - Routing is registered explicitly on a chi router in RegisterRoutes.
-//   - Field injection (@Autowired UserService) becomes explicit constructor
-//     injection via NewUserController.
-//   - JSON (de)serialization is done explicitly with encoding/json.
-//   - Bean validation (@Valid) is done explicitly (see validateUser); there is
-//     no equivalent runtime validation framework wired in here.
-//   - The global exception handler becomes the RecoverMiddleware +
-//     WriteError helper from the error package; UserNotFoundError is written
-//     out as a structured 404.
-//
-// MIGRATION_NOTE: Per the migration debate, every user-returning endpoint
-// (fetchUserById, updateUser, getUserNameByName, and the list endpoint) emits a
-// model.UserResponse rather than model.User so that nullable columns serialize
-// as JSON null consistently.
 package handler
 
 import (
@@ -194,7 +171,13 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, model.UserResponse(user))
+	writeJSON(w, http.StatusOK, model.UserResponse{
+		ID:    user.ID,
+		Name:  &user.Name,
+		Email: &user.Email,
+		Role:  &user.Role,
+		About: &user.About,
+	})
 }
 
 // GetUserByName handles GET /get_user_name/name/{name}. It fetches a user by
