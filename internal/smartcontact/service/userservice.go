@@ -1,26 +1,8 @@
-// Package service defines the business-logic (service) layer contracts and
-// implementations for the smartcontact application.
-//
-// MIGRATION_NOTE: The Java source, UserService, was a Spring service-layer
-// interface implemented by a @Service-annotated class. This file migrates the
-// interface contract to a Go interface (UserService) and provides a concrete
-// implementation (userService) constructed via NewUserService. Dependency
-// injection is explicit through the constructor rather than Spring's
-// annotation-driven container.
-//
-// MIGRATION_NOTE: Every I/O-bound method takes a context.Context as its first
-// parameter, per Go convention, even though the Java interface had no such
-// parameter. This enables cancellation and deadline propagation down to the
-// repository/database layer.
-//
-// MIGRATION_NOTE: The Java methods returned values directly and, in one case,
-// declared a checked UserNotFoundException. Idiomatic Go returns (T, error)
-// and models the "not found" condition with the ErrUserNotFound sentinel (see
-// internal/smartcontact/error). Callers use errors.Is to detect it.
 package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	smartError "migrated-app/internal/smartcontact/error"
@@ -110,8 +92,8 @@ func (s *userService) FetchUserList(ctx context.Context) ([]model.User, error) {
 func (s *userService) FetchUserByID(ctx context.Context, id int) (model.User, error) {
 	user, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		if smartError.IsUserNotFound(err) {
-			return model.User{}, smartError.WrapUserNotFound(err)
+		if errors.Is(err, smartError.ErrUserNotFound) {
+			return model.User{}, fmt.Errorf("fetch user by id %d: %w", id, smartError.ErrUserNotFound)
 		}
 		return model.User{}, fmt.Errorf("fetch user by id %d: %w", id, err)
 	}
@@ -135,13 +117,13 @@ func (s *userService) DeleteUser(ctx context.Context, id int) error {
 // the id, validates, then persists.
 func (s *userService) UpdateUser(ctx context.Context, id int, user model.User) (model.User, error) {
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
-		if smartError.IsUserNotFound(err) {
-			return model.User{}, smartError.WrapUserNotFound(err)
+		if errors.Is(err, smartError.ErrUserNotFound) {
+			return model.User{}, fmt.Errorf("update user %d: %w", id, smartError.ErrUserNotFound)
 		}
 		return model.User{}, fmt.Errorf("update user %d: %w", id, err)
 	}
 
-	user.ID = id
+	user.ID = int64(id)
 	if err := user.Validate(); err != nil {
 		return model.User{}, fmt.Errorf("update user %d: validation failed: %w", id, err)
 	}
@@ -161,7 +143,7 @@ func (s *userService) UpdateUser(ctx context.Context, id int, user model.User) (
 // the eventual policy decision can be applied at a single, well-marked place.
 // REQUIRES MANUAL REVIEW.
 func (s *userService) GetUserByName(ctx context.Context, name string) (model.User, error) {
-	user, err := s.repo.FindByName(ctx, name)
+	user, _, err := s.repo.FindByName(ctx, name)
 	if err != nil {
 		return model.User{}, fmt.Errorf("get user by name %q: %w", name, err)
 	}
