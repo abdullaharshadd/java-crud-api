@@ -23,13 +23,18 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
 
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	dbURL := cfg.DatabaseURL
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@db:5432/postgres?sslmode=disable"
+	}
+
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to open database")
 	}
 	defer db.Close()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		if err = db.Ping(); err == nil {
 			break
 		}
