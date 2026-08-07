@@ -1,20 +1,6 @@
-// Package service defines the business-logic (service) layer contracts and
-// implementations for the smartcontact application.
-//
-// MIGRATION_NOTE: The Java source, UserServiceImp, was the @Service-annotated
-// implementation of the UserService interface. In Go the interface
-// (UserService) and its concrete constructor (NewUserService) already live in
-// userservice.go. To avoid redeclaring the concrete type in the same package,
-// this file supplies the method set on that existing type. Spring's field
-// injection (@Autowired UserDao) is replaced by explicit constructor injection
-// of a repository.UserRepository (handled in userservice.go).
 package service
 
 import (
-	"context"
-	"errors"
-	"fmt"
-
 	smartcontacterror "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/model"
 )
@@ -53,3 +39,7 @@ import (
 // derived query findByName and returned the User directly (possibly null). Here
 // we surface any lookup error explicitly; a missing user is reported via
 // ErrUserNotFound so the caller can distinguish absence from other failures.
+
+// Ensure imports are used by referencing them in a blank identifier block.
+var _ = smartcontacterror.ErrUserNotFound
+var _ model.User
