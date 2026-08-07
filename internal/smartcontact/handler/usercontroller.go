@@ -29,9 +29,9 @@ import (
 	"net/http"
 	"strconv"
 
-	smartcontacterror "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/service"
+	smartcontacterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // textContentType is the Content-Type used for the plain-text mutation
