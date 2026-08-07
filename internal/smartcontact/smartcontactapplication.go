@@ -55,10 +55,12 @@ func (a *App) Router() http.Handler {
 		_, _ = fmt.Fprintln(w, "ok")
 	})
 
-	// Delegate all user CRUD route registration to the migrated controller,
-	// which owns the exact path definitions from the Java @RequestMapping
-	// annotations.
-	a.userController.RegisterRoutes(chi.Router(r))
+	// Delegate all user CRUD route registration to the migrated controller.
+	// RegisterRoutes expects *http.ServeMux, so create one and mount it on
+	// the chi router to bridge the two routing systems.
+	mux := http.NewServeMux()
+	a.userController.RegisterRoutes(mux)
+	r.Mount("/", mux)
 
 	return r
 }
