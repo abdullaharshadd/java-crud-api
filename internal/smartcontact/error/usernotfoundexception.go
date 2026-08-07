@@ -14,7 +14,7 @@
 // package named "error" (it is not a reserved keyword; only the builtin
 // identifier `error` is predeclared), but importing it may shadow the builtin
 // `error` type at call sites. Consumers should import this package with an
-// alias, e.g. `smerr "github.com/example/.../internal/smartcontact/error"`,
+// alias, e.g. `smerr "migrated-app/internal/smartcontact/error"`,
 // to avoid confusion. Renaming the package (e.g. to `domainerr`) is
 // recommended and worth manual review.
 package error
