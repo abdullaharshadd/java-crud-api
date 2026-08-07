@@ -17,6 +17,13 @@ import (
 	smartcontact "migrated-app/internal/smartcontact"
 )
 
+func getEnvOrDefault(key, defaultVal string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultVal
+}
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -25,7 +32,12 @@ func main() {
 
 	dbURL := cfg.DatabaseURL
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@db:5432/postgres?sslmode=disable"
+		host := getEnvOrDefault("POSTGRES_HOST", "db")
+		port := getEnvOrDefault("POSTGRES_PORT", "5432")
+		user := getEnvOrDefault("POSTGRES_USER", getEnvOrDefault("DB_USER", "postgres"))
+		password := getEnvOrDefault("POSTGRES_PASSWORD", getEnvOrDefault("DB_PASSWORD", "postgres"))
+		dbname := getEnvOrDefault("POSTGRES_DB", getEnvOrDefault("DB_NAME", "postgres"))
+		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, password, host, port, dbname)
 	}
 
 	db, err := sql.Open("postgres", dbURL)
