@@ -1,5 +1,9 @@
-// Package model defines the domain entities for the smartcontact application.
 package model
+
+import "errors"
+
+// ErrNameRequired is returned by Validate when the Name field is blank.
+var ErrNameRequired = errors.New("name is required")
 
 // User represents an application user stored in the users table.
 //
