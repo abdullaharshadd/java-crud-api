@@ -63,7 +63,7 @@ func (r *userRepository) FindByID(ctx context.Context, id int) (model.User, erro
 	err := r.db.QueryRowContext(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
-		return model.User{}, smartErr.WrapUserNotFound(fmt.Errorf("user id %d", id), id)
+		return model.User{}, smartErr.WrapUserNotFound(fmt.Sprintf("user id %d", id), fmt.Errorf("user id %d not found", id))
 	case err != nil:
 		return model.User{}, fmt.Errorf("repository: find user by id %d: %w", id, err)
 	}
@@ -141,7 +141,7 @@ func (r *userRepository) Save(ctx context.Context, user model.User) (model.User,
 		return model.User{}, fmt.Errorf("repository: rows affected for user id %d: %w", user.ID, err)
 	}
 	if affected == 0 {
-		return model.User{}, smartErr.WrapUserNotFound(fmt.Errorf("user id %d", user.ID), int(user.ID))
+		return model.User{}, smartErr.WrapUserNotFound(fmt.Sprintf("user id %d", user.ID), fmt.Errorf("user id %d not found", user.ID))
 	}
 	return user, nil
 }
@@ -159,7 +159,7 @@ func (r *userRepository) DeleteByID(ctx context.Context, id int) error {
 		return fmt.Errorf("repository: rows affected for delete user id %d: %w", id, err)
 	}
 	if affected == 0 {
-		return smartErr.WrapUserNotFound(fmt.Errorf("user id %d", id), id)
+		return smartErr.WrapUserNotFound(fmt.Sprintf("user id %d", id), fmt.Errorf("user id %d not found", id))
 	}
 	return nil
 }
