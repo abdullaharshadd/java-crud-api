@@ -8,16 +8,33 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog/log"
+
+	smartcontact "migrated-app/internal/smartcontact"
+	"migrated-app/internal/resources"
 )
 
 func main() {
+	cfg, err := resources.NewConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to load config")
+	}
+
+	db, err := cfg.OpenDB()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to open database")
+	}
+	defer db.Close()
+
+	app := smartcontact.NewApp(db)
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: buildRouter(),
+		Addr:    cfg.ServerAddr(),
+		Handler: app.Router(),
 	}
 
 	go func() {
@@ -26,7 +43,7 @@ func main() {
 		}
 	}()
 
-	log.Info().Msg("server started on :8080")
+	log.Info().Msgf("server started on %s", cfg.ServerAddr())
 	<-ctx.Done()
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
