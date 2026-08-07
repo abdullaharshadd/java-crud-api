@@ -1,25 +1,3 @@
-// Package handler contains the HTTP transport layer for the smartcontact
-// application. It exposes the User CRUD endpoints and delegates all business
-// logic to the service layer.
-//
-// MIGRATION_NOTE: The Java source, UserController, was a Spring @RestController
-// using field injection (@Autowired), declarative routing (@GetMapping etc.)
-// and ResponseEntity for status control. In Go these annotations have no
-// runtime equivalent, so routing is registered explicitly (RegisterRoutes),
-// dependencies are injected via a constructor (NewUserController), and status
-// codes / serialization are written directly to the http.ResponseWriter.
-//
-// MIGRATION_NOTE: Spring's @Valid bean validation is replaced by an explicit
-// call to the model's Validate method. Spring's global exception handler
-// (@ControllerAdvice) is replaced by explicit error inspection in each handler,
-// delegating to the error package's WriteDomainError / WriteError helpers.
-//
-// MIGRATION_NOTE (BLOCKER RESOLUTION): The Java saveUser returned
-// ResponseEntity<String>("User data saved successfully!", HttpStatus.OK) —
-// i.e. Variant A: a plain-text body. This is preserved here via writeText with
-// the textContentType constant. Likewise deleteUser returns a plain-text
-// message. All User/list responses use writeJSON. If a running-app curl -i
-// capture later shows a different content type, adjust textContentType.
 package handler
 
 import (
@@ -90,7 +68,7 @@ func (c *UserController) SaveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := c.userService.SaveUser(r.Context(), &user); err != nil {
+	if _, err := c.userService.SaveUser(r.Context(), user); err != nil {
 		smartcontacterror.WriteDomainError(w, err)
 		return
 	}
@@ -164,7 +142,7 @@ func (c *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := c.userService.UpdateUser(r.Context(), id, &user); err != nil {
+	if _, err := c.userService.UpdateUser(r.Context(), id, user); err != nil {
 		smartcontacterror.WriteDomainError(w, err)
 		return
 	}
