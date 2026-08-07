@@ -1,25 +1,9 @@
-// Package error provides domain error types for the smartcontact application
-// along with HTTP-layer helpers that translate those errors into structured
-// JSON responses.
-//
-// MIGRATION_NOTE: The Java source, RestResponseEntityExceptionHandling, was a
-// Spring @ControllerAdvice extending ResponseEntityExceptionHandler. Spring
-// intercepts exceptions thrown anywhere in the controller layer via AOP and
-// maps them to HTTP responses declaratively (@ExceptionHandler). Go has no
-// equivalent runtime AOP/annotation interception, so this cross-cutting
-// behaviour is replaced by explicit helper functions that HTTP handlers call
-// (typically at the point where they inspect a returned error). The specific
-// mapping preserved from the source is: UserNotFoundException -> HTTP 404 with
-// an ErrorMessage body.
-//
-// MIGRATION_NOTE: Per the migration brief, error responses are written with
-// json.Marshal followed by w.Write (rather than json.Encoder.Encode) so the
-// output has no trailing newline and matches Jackson's byte-for-byte output.
 package error
 
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"migrated-app/internal/smartcontact/model"
@@ -31,7 +15,7 @@ import (
 //
 // The Content-Type header and status code are set before the body is written.
 func WriteError(w http.ResponseWriter, status int, message string) error {
-	errorMessage := model.NewErrorMessage(status, message)
+	errorMessage := model.NewErrorMessage(fmt.Sprintf("%d", status), message)
 
 	body, err := json.Marshal(errorMessage)
 	if err != nil {
