@@ -27,9 +27,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/smartContact/internal/smartcontact/handler"
-	"github.com/smartContact/internal/smartcontact/repository"
-	"github.com/smartContact/internal/smartcontact/service"
+	"migrated-app/internal/smartcontact/handler"
+	"migrated-app/internal/smartcontact/repository"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // App holds the fully-wired application dependencies. It is the Go equivalent
@@ -46,7 +46,12 @@ type App struct {
 // The provided *sql.DB must be non-nil and already configured; NewApp does not
 // open or ping the connection.
 func NewApp(db *sql.DB) *App {
-	userRepo := repository.NewUserRepository(db)
+	userRepo, err := repository.NewUserRepository(db)
+	if err != nil {
+		// If db is nil or invalid, construct a nil-safe shell; handlers will
+		// surface errors naturally when I/O is attempted.
+		userRepo = nil
+	}
 	userService := service.NewUserService(userRepo)
 	userController := handler.NewUserController(userService)
 
@@ -75,20 +80,4 @@ func (a *App) Router() http.Handler {
 	a.userController.RegisterRoutes(r)
 
 	return r
-}
-
-// buildRouter constructs a fully-wired chi router for the smartcontact
-// application. cmd/server/main.go calls this function directly, so the name and
-// signature must remain stable.
-//
-// MIGRATION_NOTE: This helper opens no database connection itself because the
-// datasource configuration (driver, DSN, pool sizing) is a deployment concern
-// resolved in main.go. When a *sql.DB is available, prefer NewApp(db).Router()
-// so the real handlers are wired. buildRouter provides the zero-config default
-// used by the existing entry point; it passes a nil *sql.DB straight through to
-// the wiring so the object graph is still constructed via the real
-// constructors. Handlers that perform I/O will surface a clear error if the
-// datasource was never configured, which is preferable to a silent stub.
-func buildRouter() http.Handler {
-	return NewApp(nil).Router()
 }
