@@ -1,22 +1,3 @@
-// Package smartcontact is the application composition root for the
-// smartcontact service. It wires together the repository, service and handler
-// layers and exposes a fully-configured HTTP router.
-//
-// MIGRATION_NOTE: The Java source, SmartContactApplication, was the Spring Boot
-// entry point annotated with @SpringBootApplication. It relied on Spring's
-// auto-configuration and component scanning to discover @Repository, @Service
-// and @RestController beans and to bootstrap an embedded servlet container.
-// Go has no runtime dependency-injection container or classpath scanning, so
-// the bean graph is constructed explicitly here in buildRouter, and the actual
-// process bootstrap (server start / graceful shutdown) lives in
-// cmd/server/main.go, which calls buildRouter().
-//
-// MIGRATION_NOTE: Spring Boot obtains a configured DataSource from
-// application.properties. Here the *sql.DB must be provided by the caller
-// (main.go) because the connection string / driver selection is an
-// environment/deployment concern. NewApp accepts the already-open *sql.DB so
-// tests can inject a mock or an in-memory database. The target dialect is
-// PostgreSQL.
 package smartcontact
 
 import (
@@ -77,7 +58,7 @@ func (a *App) Router() http.Handler {
 	// Delegate all user CRUD route registration to the migrated controller,
 	// which owns the exact path definitions from the Java @RequestMapping
 	// annotations.
-	a.userController.RegisterRoutes(r)
+	a.userController.RegisterRoutes(chi.Router(r))
 
 	return r
 }
