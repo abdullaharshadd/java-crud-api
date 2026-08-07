@@ -23,9 +23,9 @@ import (
 	"context"
 	"fmt"
 
-	smartError "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/repository"
+	smartError "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // UserService defines the business-layer operations for managing users.
