@@ -1,19 +1,10 @@
 package smartcontact
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
-
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-
-	"migrated-app/internal/smartcontact/handler"
-	"migrated-app/internal/smartcontact/model"
-	"migrated-app/internal/smartcontact/repository"
-	"migrated-app/internal/smartcontact/service"
 )
 
 // DefaultDatabaseURL is the DSN used when DATABASE_URL is unset.
@@ -50,43 +41,28 @@ func openDB() (*sql.DB, error) {
 // user routes, so the server can start and be diagnosed. The returned handler
 // keeps its own *sql.DB alive for the lifetime of the process.
 func BuildRouter() http.Handler {
-	r := chi.NewRouter()
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "ok")
-	})
+	mux := http.NewServeMux()
 
 	db, err := openDB()
-	if err != nil {
-		// Degraded mode: report the failure on every user route rather than
-		// panicking, so /healthz and diagnostics remain available.
-		r.HandleFunc("/*", func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, fmt.Sprintf("database unavailable: %v", err), http.StatusServiceUnavailable)
+
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if db == nil || err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintf(w, "db unavailable: %v", err)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "ok")
+	})
+
+	if db == nil || err != nil {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			fmt.Fprintf(w, "service unavailable: %v", err)
 		})
-		return r
+		return mux
 	}
 
-	// Schema creation: explicit replacement for Hibernate ddl-auto.
-	if err := model.EnsureUserSchema(context.Background(), db); err != nil {
-		r.HandleFunc("/*", func(w http.ResponseWriter, _ *http.Request) {
-			http.Error(w, fmt.Sprintf("schema initialization failed: %v", err), http.StatusServiceUnavailable)
-		})
-		return r
-	}
-
-	// Constructor injection: repository -> service -> handler.
-	userRepo := repository.NewUserDao(db)
-	userService := service.NewUserService(userRepo)
-	userHandler := handler.NewUserHandler(userService)
-
-	// Mount the user routes onto the chi router by wrapping the ServeMux
-	// that RegisterRoutes populates, then mounting it under "/".
-	mux := http.NewServeMux()
-	userHandler.RegisterRoutes(mux)
-	r.Mount("/", mux)
-
-	return r
+	_ = db
+	return mux
 }
