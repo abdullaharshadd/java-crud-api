@@ -3,7 +3,6 @@ package smartcontact
 import (
 	"database/sql"
 	"fmt"
-	"net/http"
 	"os"
 )
 
@@ -29,48 +28,4 @@ func openDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 	return db, nil
-}
-
-// BuildRouter constructs the full dependency graph and returns a ready-to-serve
-// http.Handler. It is the explicit replacement for Spring's component scanning
-// and embedded-server bootstrap. cmd/server/main.go calls this directly.
-//
-// MIGRATION_NOTE: BuildRouter must not fail the whole process on a missing
-// database at import time, but a nil handler graph would be worse. If the DB
-// cannot be reached the router still serves /healthz and returns 503 for the
-// user routes, so the server can start and be diagnosed. The returned handler
-// keeps its own *sql.DB alive for the lifetime of the process.
-func BuildRouter() http.Handler {
-	mux := http.NewServeMux()
-
-	db, err := openDB()
-
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		if err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "db unavailable: %v\n", err)
-			return
-		}
-		if pingErr := db.Ping(); pingErr != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "db unavailable: %v\n", pingErr)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintln(w, "ok")
-	})
-
-	unavailable := func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-		fmt.Fprintln(w, "service unavailable: database not connected")
-	}
-
-	if err != nil {
-		mux.HandleFunc("/", unavailable)
-		return mux
-	}
-
-	_ = db
-
-	return mux
 }
