@@ -1,22 +1,3 @@
-// Package apperror contains the error types and centralized error-to-HTTP
-// mapping migrated from com.smartContact.error.
-//
-// MIGRATION_NOTE: The Java RestResponseEntityExceptionHandling was a Spring
-// @ControllerAdvice extending ResponseEntityExceptionHandler. It provided a
-// single @ExceptionHandler that intercepted UserNotFoundException thrown
-// anywhere in the request pipeline and returned a structured 404 response.
-//
-// Go has no AOP / @ControllerAdvice equivalent. Cross-cutting error handling
-// is done explicitly at the HTTP boundary. Per the migration notes
-// (CHANGE 15) this becomes a MapError function that inspects the error and
-// returns the appropriate HTTP status plus a serializable model.ErrorMessage.
-// The mapping preserves the source behavior (UserNotFoundError -> 404) and
-// extends it as instructed: *validationError -> 400, everything else -> 500.
-//
-// The two Spring-only concerns (extending ResponseEntityExceptionHandler to
-// inherit default Spring MVC handling, and the WebRequest parameter) have no
-// Go analogue and are intentionally dropped; the router/handler layer is
-// responsible for actually writing the response.
 package apperror
 
 import (
@@ -24,6 +5,8 @@ import (
 	"net/http"
 
 	"migrated-app/internal/smartcontact/model"
+
+	apperr "migrated-app/internal/smartcontact/error"
 )
 
 // validationError is the sentinel/behavioral interface used to classify
@@ -45,7 +28,7 @@ type validationError interface {
 // Spring @ControllerAdvice exception handler: callers at the HTTP boundary
 // invoke MapError and write the returned status and body.
 //
-//   - *UserNotFoundError            -> 404 Not Found
+//   - *apperr.UserNotFoundError            -> 404 Not Found
 //   - errors satisfying validationError -> 400 Bad Request
 //   - any other non-nil error       -> 500 Internal Server Error
 //
@@ -59,7 +42,7 @@ func MapError(err error) (int, model.ErrorMessage) {
 		)
 	}
 
-	var notFound *UserNotFoundError
+	var notFound *apperr.UserNotFoundError
 	if errors.As(err, &notFound) {
 		return http.StatusNotFound, model.NewErrorMessage(
 			model.HTTPStatus(http.StatusNotFound),
