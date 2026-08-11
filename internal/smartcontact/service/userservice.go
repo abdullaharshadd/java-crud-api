@@ -16,9 +16,9 @@ import (
 	"context"
 	"fmt"
 
-	apperr "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/repository"
+	apperr "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // UserService defines the user-related business operations exposed to the
