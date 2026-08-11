@@ -1,29 +1,13 @@
-// Package handler contains the HTTP delivery layer migrated from
-// com.smartContact.Controller.
-//
-// MIGRATION_NOTE: The Java UserController was a Spring @RestController that
-// relied on annotations (@GetMapping/@PostMapping/etc.) for routing, field
-// injection (@Autowired) for the UserService dependency, automatic JSON
-// (de)serialization of return values/request bodies, @Valid bean validation,
-// and a @ControllerAdvice for exception-to-HTTP mapping.
-//
-// In idiomatic Go these become:
-//   - Explicit route registration on an *http.ServeMux (RegisterRoutes).
-//   - Constructor injection via NewUserHandler(service.UserService).
-//   - Manual encoding/json marshalling of responses / decoding of bodies.
-//   - Explicit validation calls (model.User.Validate) where the source used
-//     @Valid (saveUser only — updateUser deliberately omits validation to
-//     preserve the source asymmetry).
-//   - apperror.MapError at the HTTP boundary in place of @ControllerAdvice.
 package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 
-	apperr "migrated-app/internal/smartcontact/error/apperror"
+	apperr "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/model"
 	"migrated-app/internal/smartcontact/service"
 )
@@ -61,7 +45,7 @@ func (h *UserHandler) SaveUser(w http.ResponseWriter, r *http.Request) {
 
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		writeError(w, apperr.NewValidationError("invalid request body"))
+		writeError(w, fmt.Errorf("invalid request body"))
 		return
 	}
 
@@ -71,7 +55,7 @@ func (h *UserHandler) SaveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.SaveUser(r.Context(), &user); err != nil {
+	if _, err := h.service.SaveUser(r.Context(), &user); err != nil {
 		writeError(w, err)
 		return
 	}
@@ -145,7 +129,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		writeError(w, apperr.NewValidationError("invalid request body"))
+		writeError(w, fmt.Errorf("invalid request body"))
 		return
 	}
 
@@ -183,7 +167,7 @@ func pathID(r *http.Request) (int, error) {
 	raw := r.PathValue("id")
 	id, err := strconv.Atoi(raw)
 	if err != nil {
-		return 0, apperr.NewValidationError("id must be a valid integer")
+		return 0, fmt.Errorf("id must be a valid integer")
 	}
 	return id, nil
 }
