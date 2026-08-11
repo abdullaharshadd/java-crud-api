@@ -1,24 +1,3 @@
-// Package apperror contains the application's error-handling HTTP glue.
-//
-// MIGRATION_NOTE: The Java source was a Spring @ControllerAdvice
-// (RestResponseEntityExceptionHandling) that extended
-// ResponseEntityExceptionHandler and declared a single @ExceptionHandler for
-// UserNotFoundException, translating it into a 404 ResponseEntity carrying an
-// ErrorMessage body. Go has no AOP/annotation-driven interception, so global
-// cross-cutting exception handling is realized as an explicit error-writing
-// helper that HTTP handlers call (or that a middleware invokes on a returned
-// error). This centralizes the exception-to-status mapping the debate notes
-// require:
-//
-//	UserNotFound            -> 404
-//	repository.ErrNoRowsDeleted -> 500
-//	Postgres duplicate key  -> 500
-//	validation errors       -> 400
-//	default                 -> 500
-//
-// The original Spring class only mapped UserNotFoundException->404; the wider
-// mapping table comes from the agreed migration plan so a single place owns
-// all status decisions.
 package apperror
 
 import (
@@ -28,6 +7,7 @@ import (
 
 	"github.com/jackc/pgconn"
 
+	apperr "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/model"
 	"migrated-app/internal/smartcontact/repository"
 )
@@ -65,7 +45,7 @@ func StatusFor(err error) int {
 		return http.StatusOK
 	}
 
-	var unf *apperrUserNotFound
+	var unf *apperr.UserNotFound
 	if errors.As(err, &unf) {
 		return http.StatusNotFound
 	}
@@ -115,9 +95,3 @@ func WriteError(w http.ResponseWriter, err error) {
 		http.Error(w, msg, status)
 	}
 }
-
-// apperrUserNotFound is a local alias target used only so errors.As can match
-// the migrated UserNotFound type from this package without creating an import
-// cycle. UserNotFound already lives in this same package
-// (usernotfoundexception.go), so we reference it directly.
-type apperrUserNotFound = UserNotFound
