@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+
+	smartcontact "migrated-app/internal/smartcontact"
 )
 
 func main() {
@@ -17,7 +19,7 @@ func main() {
 
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: buildRouter(),
+		Handler: smartcontact.BuildRouter(),
 	}
 
 	go func() {
