@@ -1,23 +1,3 @@
-// Package handler provides the HTTP transport layer for the Smart Contact
-// service. It is the Go equivalent of the source project's
-// com.smartContact.Controller package.
-//
-// MIGRATION_NOTE: The Java source was a Spring @RestController (UserController)
-// using @Autowired field injection of a UserService and annotation-driven
-// routing (@PostMapping, @GetMapping, ...). Spring bound path variables and
-// JSON request bodies automatically, ran bean validation via @Valid, and
-// converted return values / thrown exceptions into HTTP responses.
-//
-// In idiomatic Go there is no annotation-driven routing or DI container. We
-// therefore:
-//
-//   - Define a Handler struct holding the UserService dependency, constructed
-//     explicitly via NewHandler (constructor injection instead of @Autowired).
-//   - Register every route explicitly on a chi router in RegisterRoutes.
-//   - Decode JSON bodies with encoding/json and run model validation manually.
-//   - Translate errors into HTTP responses via the shared error handler
-//     (restresponseentityexceptionhandling.WriteError), the Go analogue of
-//     Spring's @ControllerAdvice exception handler.
 package handler
 
 import (
@@ -76,18 +56,18 @@ func (h *Handler) SaveUser(w http.ResponseWriter, r *http.Request) {
 	// to mirror Spring's lenient JSON binding.
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
 	// @Valid equivalent: run model validation explicitly.
 	if err := user.Validate(); err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
 	if err := h.userService.SaveUser(r.Context(), &user); err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
@@ -101,7 +81,7 @@ func (h *Handler) FetchUserList(w http.ResponseWriter, r *http.Request) {
 
 	users, err := h.userService.FetchUserList(r.Context())
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
@@ -113,13 +93,13 @@ func (h *Handler) FetchUserList(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
 	user, err := h.userService.FetchUserByID(r.Context(), id)
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
@@ -131,12 +111,12 @@ func (h *Handler) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
 	if err := h.userService.DeleteUser(r.Context(), id); err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
@@ -152,18 +132,18 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
 	if err := h.userService.UpdateUser(r.Context(), id, &user); err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
@@ -177,7 +157,7 @@ func (h *Handler) GetUserByName(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.GetUserByName(r.Context(), name)
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 
@@ -206,7 +186,7 @@ func writeText(w http.ResponseWriter, status int, msg string) {
 func writeJSON(w http.ResponseWriter, r *http.Request, status int, v any) {
 	buf, err := json.Marshal(v)
 	if err != nil {
-		errhandler.WriteError(w, r, err)
+		errhandler.WriteError(w, err)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
