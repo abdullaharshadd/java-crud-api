@@ -25,7 +25,7 @@ import (
 	errors "errors"
 	"net/http"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // MapError inspects err and returns the HTTP status code and an *ErrorMessage
