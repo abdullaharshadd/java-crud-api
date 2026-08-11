@@ -23,7 +23,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // validationError is the sentinel/behavioral interface used to classify
