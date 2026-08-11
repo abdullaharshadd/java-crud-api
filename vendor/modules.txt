@@ -1,0 +1,6 @@
+# github.com/rs/zerolog v1.0.0
+## explicit; go 1.23
+github.com/rs/zerolog/log
+# github.com/lib/pq v1.10.9
+## explicit; go 1.17
+github.com/lib/pq
