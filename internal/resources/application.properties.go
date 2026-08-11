@@ -1,41 +1,7 @@
-// Package resources holds runtime configuration for the Smart Contact
-// service. It is the Go equivalent of the source project's Spring Boot
-// application.properties file.
-//
-// MIGRATION_NOTE: The Java source was a Spring Boot application.properties
-// file. Spring Boot's externalized configuration and auto-configuration have
-// no direct Go equivalent — there is no framework that reflectively wires a
-// DataSource or JPA EntityManager from key/value properties. In idiomatic Go
-// we load configuration explicitly from environment variables (with sane
-// defaults) into a typed Config struct, and the caller uses that struct to
-// build an *sql.DB and an *http.Server.
-//
-// Key translation decisions:
-//
-//   - server.port                  -> Config.ServerPort (env SERVER_PORT)
-//   - spring.datasource.url        -> decomposed into host/port/name and
-//                                     rebuilt as a PostgreSQL DSN. The source
-//                                     used MySQL (jdbc:mysql://.../barcode),
-//                                     but the TARGET database is PostgreSQL,
-//                                     so we deliberately emit a lib/pq-style
-//                                     DSN and do NOT mirror the MySQL dialect.
-//   - spring.datasource.username   -> Config.DBUser (env DB_USER)
-//   - spring.datasource.password   -> Config.DBPassword (env DB_PASSWORD)
-//   - spring.datasource.driver...  -> dropped; the Go driver is chosen at
-//                                     import time (e.g. _ "github.com/lib/pq").
-//   - spring.jpa.hibernate.ddl-auto=update -> no equivalent. Schema migrations
-//                                     should be handled explicitly (e.g. with
-//                                     golang-migrate) rather than auto-applied
-//                                     at startup. Flagged for manual review.
-//   - spring.jpa...dialect=MySQL8  -> intentionally NOT carried over; PostgreSQL
-//                                     is the target dialect.
-//
-// The hard-coded credentials in the source (root/root) are treated as
-// development-only defaults here; production deployments MUST override them
-// via environment variables.
 package resources
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"strconv"
@@ -53,6 +19,19 @@ const (
 	defaultDBPassword = "postgres"
 	defaultDBSSLMode  = "disable"
 )
+
+// createUsersTableSQL is the DDL for the users table, derived from the User
+// model in internal/smartcontact/model/user.go. Column names match the `db`
+// struct tags exactly.
+const createUsersTableSQL = `
+CREATE TABLE IF NOT EXISTS users (
+    user_id       SERIAL PRIMARY KEY,
+    user_name     TEXT NOT NULL,
+    user_email    TEXT NOT NULL UNIQUE,
+    user_password TEXT NOT NULL,
+    user_role     TEXT NOT NULL DEFAULT '',
+    user_about    TEXT NOT NULL DEFAULT ''
+)`
 
 // Config holds all runtime configuration for the Smart Contact service. It is
 // the idiomatic Go replacement for Spring Boot's externalized properties.
@@ -81,6 +60,9 @@ type Config struct {
 // Recognized environment variables:
 //
 //	SERVER_PORT, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD, DB_SSLMODE
+//
+// Also recognizes DATABASE_URL as a complete DSN override (takes precedence
+// over individual DB_* variables when set).
 func LoadConfig() (*Config, error) {
 	serverPort, err := intFromEnv("SERVER_PORT", defaultServerPort)
 	if err != nil {
@@ -96,9 +78,9 @@ func LoadConfig() (*Config, error) {
 		ServerPort: serverPort,
 		DBHost:     stringFromEnv("DB_HOST", defaultDBHost),
 		DBPort:     dbPort,
-		DBName:     stringFromEnv("DB_NAME", defaultDBName),
-		DBUser:     stringFromEnv("DB_USER", defaultDBUser),
-		DBPassword: stringFromEnv("DB_PASSWORD", defaultDBPassword),
+		DBName:     stringFromEnv("DB_NAME", stringFromEnv("DB_DATABASE", stringFromEnv("POSTGRES_DB", defaultDBName))),
+		DBUser:     stringFromEnv("DB_USER", stringFromEnv("DB_USERNAME", stringFromEnv("POSTGRES_USER", defaultDBUser))),
+		DBPassword: stringFromEnv("DB_PASSWORD", stringFromEnv("POSTGRES_PASSWORD", defaultDBPassword)),
 		DBSSLMode:  stringFromEnv("DB_SSLMODE", defaultDBSSLMode),
 	}
 	return cfg, nil
@@ -106,7 +88,13 @@ func LoadConfig() (*Config, error) {
 
 // DSN returns a PostgreSQL data source name suitable for sql.Open("postgres", ...)
 // with the lib/pq driver. This replaces Spring's spring.datasource.url.
+//
+// If the DATABASE_URL environment variable is set, it is returned as-is and
+// takes precedence over the individual DB_* fields.
 func (c *Config) DSN() string {
+	if v := os.Getenv("DATABASE_URL"); v != "" {
+		return v
+	}
 	return fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
 		c.DBHost, c.DBPort, c.DBUser, c.DBPassword, c.DBName, c.DBSSLMode,
@@ -117,6 +105,19 @@ func (c *Config) DSN() string {
 // for http.Server.Addr. This replaces Spring's server.port.
 func (c *Config) Addr() string {
 	return fmt.Sprintf(":%d", c.ServerPort)
+}
+
+// EnsureSchema creates the users table (and any other required tables) in the
+// database if they do not already exist. This replaces the JPA
+// hibernate.ddl-auto=update behaviour from the source application.properties.
+// It must be called once after the *sql.DB is opened and before any queries
+// are executed.
+func EnsureSchema(db *sql.DB) error {
+	_, err := db.Exec(createUsersTableSQL)
+	if err != nil {
+		return fmt.Errorf("EnsureSchema: creating users table: %w", err)
+	}
+	return nil
 }
 
 // stringFromEnv returns the value of the named environment variable, or the
