@@ -28,8 +28,8 @@ import (
 
 	"github.com/jackc/pgconn"
 
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/repository"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // ValidationError marks an error as a client-side validation failure so the
