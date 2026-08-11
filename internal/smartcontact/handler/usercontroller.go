@@ -28,9 +28,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	errhandler "github.com/smartcontact/internal/smartcontact/error/restresponseentityexceptionhandling"
-	"github.com/smartcontact/internal/smartcontact/model"
-	"github.com/smartcontact/internal/smartcontact/service"
+	errhandler "migrated-app/internal/smartcontact/error/restresponseentityexceptionhandling"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // Handler exposes the User CRUD HTTP endpoints, delegating all business logic
