@@ -1,22 +1,3 @@
-// Package smartcontacterror defines domain-level error types for the Smart
-// Contact service. It is the Go equivalent of the source project's
-// com.smartContact.error package.
-//
-// MIGRATION_NOTE: The Java source defined UserNotFoundException as a checked
-// Exception with the standard four/five-constructor idiom (no-arg, message,
-// message+cause, cause, and the protected suppression-controlling overload).
-// Go has no exception hierarchy and no checked exceptions: errors are ordinary
-// values that satisfy the built-in error interface. The idiomatic replacement
-// is a typed error struct that:
-//
-//   - implements error via Error()
-//   - implements Unwrap() so errors.Is / errors.As can traverse a wrapped cause
-//     (this replaces Java's Throwable cause chaining)
-//
-// The suppression / writableStackTrace flags from the protected constructor
-// have no Go equivalent and are intentionally dropped — Go does not attach
-// stack traces to error values by default, and there is no suppressed-exception
-// mechanism.
 package smartcontacterror
 
 import (
