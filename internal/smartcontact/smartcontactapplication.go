@@ -56,15 +56,11 @@ func BuildRouter() http.Handler {
 	})
 
 	if db == nil || err != nil {
-		unavailable := func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "db unavailable: %v", err)
-		}
-		mux.HandleFunc("/", unavailable)
-		return mux
+			fmt.Fprintf(w, "service unavailable: %v", err)
+		})
 	}
-
-	_ = db
 
 	return mux
 }
