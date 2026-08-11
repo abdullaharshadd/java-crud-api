@@ -18,8 +18,8 @@ import (
 	"errors"
 	"fmt"
 
-	apperr "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
+	apperr "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // ErrUserNotFound is returned by mutating operations (e.g. Delete) when the
