@@ -1,32 +1,3 @@
-// Package service provides the business-logic layer for the Smart Contact
-// service. It is the Go equivalent of the source project's
-// com.smartContact.service package.
-//
-// MIGRATION_NOTE: The Java source was a Spring service-layer interface
-// (UserService) declaring CRUD operations over the User entity. A concrete
-// @Service implementation (elsewhere in the source project) was injected into
-// controllers and delegated to the Spring Data JPA UserDao repository.
-//
-// In idiomatic Go we keep the interface as a small abstraction, but we also
-// provide a concrete implementation in this same file because the source
-// interface has no additional behavior beyond delegating to the repository —
-// there is no separate Java "UserServiceImp" file to migrate. Every method
-// takes a context.Context (for cancellation/deadline propagation through the
-// I/O in the repository layer) and returns an explicit error, replacing Java's
-// checked-exception propagation (UserNotFoundException).
-//
-// Key translation decisions:
-//
-//   - saveUser(User)            -> SaveUser(ctx, User) (*model.User, error)
-//   - fetchUserList()           -> FetchUserList(ctx) ([]model.User, error)
-//   - fetchUserById(int) throws -> FetchUserByID(ctx, int) (*model.User, error)
-//                                  (returns error.ErrUserNotFound when absent)
-//   - deleteUser(int)           -> DeleteUser(ctx, int) error
-//   - updateUser(int, User)     -> UpdateUser(ctx, int, User) error (void in
-//                                  Java; informs the handler's empty-200-body
-//                                  default)
-//   - getUserNameByName(String) -> GetUserByName(ctx, string) (*model.User,
-//                                  error)
 package service
 
 import (
@@ -91,7 +62,7 @@ func (s *userService) SaveUser(ctx context.Context, user model.User) (*model.Use
 	if err := user.Validate(); err != nil {
 		return nil, fmt.Errorf("service: save user: %w", err)
 	}
-	saved, err := s.repo.Save(ctx, user)
+	saved, err := s.repo.Save(ctx, &user)
 	if err != nil {
 		return nil, fmt.Errorf("service: save user: %w", err)
 	}
@@ -100,9 +71,15 @@ func (s *userService) SaveUser(ctx context.Context, user model.User) (*model.Use
 
 // FetchUserList returns every user in the system.
 func (s *userService) FetchUserList(ctx context.Context) ([]model.User, error) {
-	users, err := s.repo.FindAll(ctx)
+	ptrs, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("service: fetch user list: %w", err)
+	}
+	users := make([]model.User, 0, len(ptrs))
+	for _, p := range ptrs {
+		if p != nil {
+			users = append(users, *p)
+		}
 	}
 	return users, nil
 }
@@ -147,7 +124,7 @@ func (s *userService) UpdateUser(ctx context.Context, id int, user model.User) e
 
 	// Preserve the target identifier regardless of the request body.
 	user.ID = id
-	if _, err := s.repo.Save(ctx, user); err != nil {
+	if _, err := s.repo.Save(ctx, &user); err != nil {
 		return fmt.Errorf("service: update user %d: %w", id, err)
 	}
 	return nil
