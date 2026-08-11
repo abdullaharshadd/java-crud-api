@@ -27,9 +27,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/smartContact/internal/smartcontact/error/apperror"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/service"
+	"migrated-app/internal/smartcontact/error/apperror"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // UserController is the HTTP handler set for User resources. It holds its
