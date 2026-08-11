@@ -22,7 +22,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // ErrNoRowsDeleted is returned by DeleteByID when no row matches the supplied
