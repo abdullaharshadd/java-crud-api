@@ -23,9 +23,9 @@ import (
 	"net/http"
 	"strconv"
 
-	apperr "github.com/smartContact/internal/smartcontact/error/apperror"
-	"github.com/smartContact/internal/smartcontact/model"
-	"github.com/smartContact/internal/smartcontact/service"
+	apperr "migrated-app/internal/smartcontact/error/apperror"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
 )
 
 // UserHandler exposes the user CRUD HTTP endpoints, delegating all business
