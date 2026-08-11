@@ -2,9 +2,10 @@ package error
 
 import (
 	"encoding/json"
-	errors "errors"
+	"errors"
 	"net/http"
 
+	smartcontacterror "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/model"
 )
 
@@ -20,7 +21,7 @@ func MapError(err error) (int, *model.ErrorMessage) {
 		return http.StatusOK, nil
 	}
 
-	var nf *UserNotFoundError
+	var nf *smartcontacterror.UserNotFoundError
 	switch {
 	case errors.As(err, &nf):
 		msg := model.NewErrorMessage(http.StatusNotFound, nf.Error())
