@@ -1,32 +1,3 @@
-// Package repository provides data-access logic for the Smart Contact
-// service. It is the Go equivalent of the source project's
-// com.smartContact.repository package.
-//
-// MIGRATION_NOTE: The Java source was a Spring Data JPA repository interface
-// (UserDao) extending JpaRepository<User, Integer>. Spring generated a proxy
-// implementation at runtime, deriving SQL from method names (e.g. findByName ->
-// WHERE name = ?) and supplying standard CRUD operations (save, findById,
-// findAll, deleteById, ...) for free.
-//
-// Go has no runtime proxy generation, no annotation-driven query derivation,
-// and no ORM in the standard library. The idiomatic replacement is:
-//
-//   - A UserRepository interface declaring exactly the operations this service
-//     uses (the subset of JpaRepository we actually need, plus the custom
-//     FindByName finder). Callers depend on the interface, not the concrete
-//     type, which keeps the service layer testable.
-//   - A concrete PostgresUserRepository backed by *sql.DB that writes the SQL
-//     explicitly.
-//
-// Translation decisions:
-//
-//   - JPA save() maps to a PostgreSQL upsert (INSERT ... ON CONFLICT ... DO
-//     UPDATE) using RETURNING id to obtain the generated key. There is no
-//     LastInsertId() with Postgres drivers.
-//   - findById / findByName raise UserNotFoundError via NewUserNotFoundErrorf
-//     with the exact interpolated messages when no row matches (CHANGE 18).
-//   - Every I/O method takes context.Context as its first parameter.
-//   - PostgreSQL positional placeholders ($1, $2, ...) are used throughout.
 package repository
 
 import (
@@ -87,7 +58,7 @@ func NewPostgresUserRepository(db *sql.DB) (*PostgresUserRepository, error) {
 //
 // MIGRATION_NOTE: JPA save() performs an INSERT-or-UPDATE based on whether the
 // entity is transient. We express that with an explicit branch plus RETURNING
-// id (the Postgres way to obtain a generated key).
+// user_id (the Postgres way to obtain a generated key).
 func (r *PostgresUserRepository) Save(ctx context.Context, u *model.User) (*model.User, error) {
 	if u == nil {
 		return nil, errors.New("repository: user must not be nil")
@@ -98,10 +69,10 @@ func (r *PostgresUserRepository) Save(ctx context.Context, u *model.User) (*mode
 
 	if u.ID == 0 {
 		const insertQuery = `
-			INSERT INTO users (name, password)
-			VALUES ($1, $2)
-			RETURNING id`
-		if err := r.db.QueryRowContext(ctx, insertQuery, u.Name, u.Password).Scan(&u.ID); err != nil {
+			INSERT INTO users (user_name, user_email, user_password, user_role, user_about)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING user_id`
+		if err := r.db.QueryRowContext(ctx, insertQuery, u.Name, u.Email, u.Password, u.Role, u.About).Scan(&u.ID); err != nil {
 			return nil, fmt.Errorf("repository: insert user: %w", err)
 		}
 		return u, nil
@@ -109,9 +80,9 @@ func (r *PostgresUserRepository) Save(ctx context.Context, u *model.User) (*mode
 
 	const updateQuery = `
 		UPDATE users
-		SET name = $1, password = $2
-		WHERE id = $3`
-	res, err := r.db.ExecContext(ctx, updateQuery, u.Name, u.Password, u.ID)
+		SET user_name = $1, user_email = $2, user_password = $3, user_role = $4, user_about = $5
+		WHERE user_id = $6`
+	res, err := r.db.ExecContext(ctx, updateQuery, u.Name, u.Email, u.Password, u.Role, u.About, u.ID)
 	if err != nil {
 		return nil, fmt.Errorf("repository: update user: %w", err)
 	}
@@ -129,9 +100,9 @@ func (r *PostgresUserRepository) Save(ctx context.Context, u *model.User) (*mode
 // matching row exists.
 func (r *PostgresUserRepository) FindByID(ctx context.Context, id int) (*model.User, error) {
 	const query = `
-		SELECT id, name, password
+		SELECT user_id, user_name, user_email, user_password, user_role, user_about
 		FROM users
-		WHERE id = $1`
+		WHERE user_id = $1`
 	u, err := r.scanUser(r.db.QueryRowContext(ctx, query, id))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -147,9 +118,9 @@ func (r *PostgresUserRepository) FindByID(ctx context.Context, id int) (*model.U
 // query.
 func (r *PostgresUserRepository) FindByName(ctx context.Context, name string) (*model.User, error) {
 	const query = `
-		SELECT id, name, password
+		SELECT user_id, user_name, user_email, user_password, user_role, user_about
 		FROM users
-		WHERE name = $1`
+		WHERE user_name = $1`
 	u, err := r.scanUser(r.db.QueryRowContext(ctx, query, name))
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -163,9 +134,9 @@ func (r *PostgresUserRepository) FindByName(ctx context.Context, name string) (*
 // FindAll returns every user in the table.
 func (r *PostgresUserRepository) FindAll(ctx context.Context) ([]*model.User, error) {
 	const query = `
-		SELECT id, name, password
+		SELECT user_id, user_name, user_email, user_password, user_role, user_about
 		FROM users
-		ORDER BY id`
+		ORDER BY user_id`
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("repository: find all users: %w", err)
@@ -189,7 +160,7 @@ func (r *PostgresUserRepository) FindAll(ctx context.Context) ([]*model.User, er
 // DeleteByID removes the user with the given ID. It returns a
 // UserNotFoundError when no matching row exists.
 func (r *PostgresUserRepository) DeleteByID(ctx context.Context, id int) error {
-	const query = `DELETE FROM users WHERE id = $1`
+	const query = `DELETE FROM users WHERE user_id = $1`
 	res, err := r.db.ExecContext(ctx, query, id)
 	if err != nil {
 		return fmt.Errorf("repository: delete user by id: %w", err)
@@ -213,7 +184,7 @@ type rowScanner interface {
 // scanUser reads a single user row from the given scanner.
 func (r *PostgresUserRepository) scanUser(s rowScanner) (*model.User, error) {
 	var u model.User
-	if err := s.Scan(&u.ID, &u.Name, &u.Password); err != nil {
+	if err := s.Scan(&u.ID, &u.Name, &u.Email, &u.Password, &u.Role, &u.About); err != nil {
 		return nil, err
 	}
 	return &u, nil
