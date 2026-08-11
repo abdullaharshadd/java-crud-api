@@ -13,7 +13,7 @@
 //   - The database handle and schema creation are set up here at startup
 //     (EnsureUserSchema), replacing Hibernate's ddl-auto.
 //   - cmd/server/main.go owns func main(), opens the http.Server and
-//     performs graceful shutdown; it calls BuildRouter() from this package.
+//     performs graceful shutdown; it calls buildRouter() from this package.
 package smartcontact
 
 import (
@@ -24,7 +24,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	_ "github.com/lib/pq"
 
 	"migrated-app/internal/smartcontact/handler"
 	"migrated-app/internal/smartcontact/model"
@@ -40,10 +39,7 @@ const DefaultDatabaseURL = "postgres://postgres:postgres@localhost:5432/smartcon
 // openDB opens the PostgreSQL connection pool and verifies connectivity.
 // The caller owns the returned *sql.DB and is responsible for closing it.
 func openDB() (*sql.DB, error) {
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		dsn = os.Getenv("SMARTCONTACT_DATABASE_URL")
-	}
+	dsn := os.Getenv("SMARTCONTACT_DATABASE_URL")
 	if dsn == "" {
 		dsn = DefaultDatabaseURL
 	}
@@ -59,20 +55,15 @@ func openDB() (*sql.DB, error) {
 	return db, nil
 }
 
-// BuildRouter constructs the full dependency graph and returns a ready-to-serve
+// buildRouter constructs the full dependency graph and returns a ready-to-serve
 // http.Handler. It is the explicit replacement for Spring's component scanning
 // and embedded-server bootstrap. cmd/server/main.go calls this directly.
 //
-// MIGRATION_NOTE: BuildRouter must not fail the whole process on a missing
+// MIGRATION_NOTE: buildRouter must not fail the whole process on a missing
 // database at import time, but a nil handler graph would be worse. If the DB
 // cannot be reached the router still serves /healthz and returns 503 for the
 // user routes, so the server can start and be diagnosed. The returned handler
 // keeps its own *sql.DB alive for the lifetime of the process.
-func BuildRouter() http.Handler {
-	return buildRouter()
-}
-
-// buildRouter is the internal implementation used by BuildRouter and tests.
 func buildRouter() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
