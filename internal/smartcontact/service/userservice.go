@@ -1,19 +1,8 @@
-// Package service defines the business-logic layer contracts and
-// implementations migrated from com.smartContact.service.
-//
-// MIGRATION_NOTE: The Java UserService was a Spring @Service interface
-// with no implementation body (the concrete UserServiceImpl was a
-// separate class). This file migrates the interface contract to an
-// idiomatic Go interface plus a concrete database/sql-backed
-// implementation, since the migration notes call for it to be injected
-// into NewUserHandler via a constructor. The method set is preserved:
-// SaveUser, GetAllUsers, FetchUserById, DeleteUser, UpdateUser and
-// GetUserNameByName. Each I/O method takes a context.Context as its
-// first parameter per Go conventions.
 package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	apperr "migrated-app/internal/smartcontact/error"
@@ -88,12 +77,12 @@ func (s *userService) GetAllUsers(ctx context.Context) ([]*model.User, error) {
 // translated into a *apperr.UserNotFoundError, mirroring the Java method's
 // declared throws UserNotFoundException.
 func (s *userService) FetchUserById(ctx context.Context, id int) (*model.User, error) {
-	user, err := s.repo.FindByID(ctx, id)
+	user, found, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		if isNotFound(err) {
-			return nil, apperr.NewUserNotFoundErrorf("user with id %d not found", id)
-		}
 		return nil, fmt.Errorf("fetch user by id: %w", err)
+	}
+	if !found {
+		return nil, apperr.NewUserNotFoundErrorf("user with id %d not found", id)
 	}
 	return user, nil
 }
@@ -120,12 +109,12 @@ func (s *userService) UpdateUser(ctx context.Context, id int, user *model.User) 
 	if user == nil {
 		return fmt.Errorf("update user: user must not be nil")
 	}
-	existing, err := s.repo.FindByID(ctx, id)
+	existing, found, err := s.repo.FindByID(ctx, id)
 	if err != nil {
-		if isNotFound(err) {
-			return apperr.NewUserNotFoundErrorf("user with id %d not found", id)
-		}
 		return fmt.Errorf("update user: %w", err)
+	}
+	if !found {
+		return apperr.NewUserNotFoundErrorf("user with id %d not found", id)
 	}
 
 	if user.Name != nil {
@@ -168,5 +157,5 @@ func (s *userService) GetUserNameByName(ctx context.Context, name string) (*mode
 // isNotFound reports whether err represents a missing-row condition from
 // the repository layer.
 func isNotFound(err error) bool {
-	return errorsIs(err, repository.ErrUserNotFound)
+	return errors.Is(err, repository.ErrUserNotFound)
 }
