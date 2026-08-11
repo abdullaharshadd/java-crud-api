@@ -35,8 +35,8 @@ import (
 // The concrete *repository.UserDao satisfies this interface.
 type userRepository interface {
 	Save(ctx context.Context, user *model.User) (*model.User, error)
-	FindAll(ctx context.Context) ([]*model.User, error)
-	FindByID(ctx context.Context, id int) (*model.User, bool, error)
+	FindAll(ctx context.Context) ([]model.User, error)
+	FindByID(ctx context.Context, id int) (*model.User, error)
 	DeleteByID(ctx context.Context, id int) error
 	FindByName(ctx context.Context, name string) (*model.User, error)
 }
@@ -70,26 +70,33 @@ func (s *userService) FetchUserList(ctx context.Context) ([]*model.User, error) 
 	if err != nil {
 		return nil, fmt.Errorf("fetch user list: %w", err)
 	}
-	return users, nil
+	// Convert []model.User to []*model.User
+	result := make([]*model.User, len(users))
+	for i := range users {
+		u := users[i]
+		result[i] = &u
+	}
+	return result, nil
 }
 
 // FetchUserByID returns the user with the given id. If no such user exists it
 // returns a *apperr.UserNotFound error, mirroring the Java source which threw
 // UserNotFoundException("User are not available") when the Optional was empty.
-func (s *userService) FetchUserByID(ctx context.Context, id int) (*model.User, error) {
-	user, found, err := s.dao.FindByID(ctx, id)
+func (s *userService) FetchUserByID(ctx context.Context, id int64) (*model.User, error) {
+	user, err := s.dao.FindByID(ctx, int(id))
 	if err != nil {
+		// surface repository-level not-found as domain not-found
 		return nil, fmt.Errorf("fetch user by id %d: %w", id, err)
 	}
-	if !found {
+	if user == nil {
 		return nil, apperr.NewUserNotFound("User are not available")
 	}
 	return user, nil
 }
 
 // DeleteUser removes the user with the given id.
-func (s *userService) DeleteUser(ctx context.Context, id int) error {
-	if err := s.dao.DeleteByID(ctx, id); err != nil {
+func (s *userService) DeleteUser(ctx context.Context, id int64) error {
+	if err := s.dao.DeleteByID(ctx, int(id)); err != nil {
 		return fmt.Errorf("delete user %d: %w", id, err)
 	}
 	return nil
@@ -98,20 +105,18 @@ func (s *userService) DeleteUser(ctx context.Context, id int) error {
 // UpdateUser sets the id from the path variable on the incoming user and
 // persists it, preserving the Java source's behavior of forcing the entity id
 // to match the URL id before delegating to save.
-func (s *userService) UpdateUser(ctx context.Context, id int, user *model.User) error {
+func (s *userService) UpdateUser(ctx context.Context, id int64, user *model.User) error {
 	if user == nil {
 		return fmt.Errorf("update user %d: user must not be nil", id)
 	}
-	user.ID = id
+	user.ID = int(id)
 	if _, err := s.dao.Save(ctx, user); err != nil {
 		return fmt.Errorf("update user %d: %w", id, err)
 	}
 	return nil
 }
 
-// GetUserByName returns the user matching the given name. In the Java source
-// getUserNameByName returned the raw findByName result (possibly null); here we
-// surface the repository's (result, error) contract directly.
+// GetUserByName returns the user matching the given name.
 func (s *userService) GetUserByName(ctx context.Context, name string) (*model.User, error) {
 	user, err := s.dao.FindByName(ctx, name)
 	if err != nil {
