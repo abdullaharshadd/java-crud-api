@@ -48,26 +48,27 @@ func BuildRouter() http.Handler {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "db unavailable: %v", err)
+			fmt.Fprintf(w, "db unavailable: %v\n", err)
 			return
 		}
 		if pingErr := db.Ping(); pingErr != nil {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "db ping failed: %v", pingErr)
+			fmt.Fprintf(w, "db unavailable: %v\n", pingErr)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "ok")
+		fmt.Fprintln(w, "ok")
 	})
 
 	if err != nil {
 		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			fmt.Fprintf(w, "service unavailable: %v", err)
+			fmt.Fprintf(w, "service unavailable: db not connected\n")
 		})
 		return mux
 	}
 
 	_ = db
+
 	return mux
 }
