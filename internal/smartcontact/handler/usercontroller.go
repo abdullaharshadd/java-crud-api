@@ -66,7 +66,7 @@ func (h *Handler) SaveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.userService.SaveUser(r.Context(), &user); err != nil {
+	if _, err := h.userService.SaveUser(r.Context(), user); err != nil {
 		errhandler.WriteError(w, err)
 		return
 	}
@@ -142,7 +142,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.userService.UpdateUser(r.Context(), id, &user); err != nil {
+	if err := h.userService.UpdateUser(r.Context(), id, user); err != nil {
 		errhandler.WriteError(w, err)
 		return
 	}
