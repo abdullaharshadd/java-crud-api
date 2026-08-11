@@ -23,14 +23,16 @@ func MapError(err error) (int, *model.ErrorMessage) {
 	var nf *UserNotFoundError
 	switch {
 	case errors.As(err, &nf):
-		return http.StatusNotFound, model.NewErrorMessage(http.StatusNotFound, nf.Error())
+		msg := model.NewErrorMessage(http.StatusNotFound, nf.Error())
+		return http.StatusNotFound, &msg
 	default:
 		// MIGRATION_NOTE: The Java class inherited ResponseEntityExceptionHandler,
 		// which supplied default handling for a range of Spring MVC exceptions
 		// (validation, unreadable body, etc.). There is no Go equivalent to
 		// inherit, so all otherwise-unrecognized errors collapse to a generic
 		// 500 here. Extend this switch as more domain error types are migrated.
-		return http.StatusInternalServerError, model.NewErrorMessage(http.StatusInternalServerError, err.Error())
+		msg := model.NewErrorMessage(http.StatusInternalServerError, err.Error())
+		return http.StatusInternalServerError, &msg
 	}
 }
 
