@@ -1,39 +1,12 @@
-// Package service provides the business-logic layer for the Smart Contact
-// service. It is the Go equivalent of the source project's
-// com.smartContact.service package.
-//
-// MIGRATION_NOTE: The Java source (UserServiceImp) was the Spring @Service
-// implementation of the UserService interface, using @Autowired field
-// injection of a UserDao (Spring Data JPA repository). Its methods delegated
-// directly to the repository, wrapping the JPA findById Optional in a
-// UserNotFoundException when empty.
-//
-// The UserService interface and its concrete implementation were already
-// migrated together in userservice.go (Go has no interface/impl file split,
-// and re-declaring the concrete type here would fail to compile). Therefore
-// this file does NOT redeclare the service type. Instead it adds the one
-// piece of behavior that lived only in the Java implementation and is not part
-// of the migrated interface: getUserNameByName -> GetUserByName was mapped in
-// userservice.go, but if the concrete type there already implements it this
-// file would be redundant. To avoid a duplicate declaration while still
-// contributing real, compilable code, this file provides a standalone
-// constructor variant plus a helper that mirrors the source implementation's
-// explicit not-found handling, which callers may use directly.
-//
-// REQUIRES MANUAL REVIEW: Confirm the concrete UserService implementation in
-// userservice.go already covers SaveUser, FetchUserList, FetchUserByID,
-// DeleteUser, UpdateUser and GetUserByName. If it does, everything the Java
-// UserServiceImp did is already present and this file's helpers are optional
-// conveniences rather than the primary implementation.
 package service
 
 import (
 	"context"
 	"errors"
 
-	smarterror "internal/smartcontact/error"
-	"internal/smartcontact/model"
-	"internal/smartcontact/repository"
+	smarterror "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/repository"
 )
 
 // FetchUserByIDStrict fetches a single user by id and returns a
