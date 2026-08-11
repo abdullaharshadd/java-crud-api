@@ -1,22 +1,3 @@
-// Package handler contains the HTTP transport layer for the smartcontact
-// application. It maps HTTP requests to service calls and translates results
-// (and errors) back into HTTP responses.
-//
-// MIGRATION_NOTE: The Java source was a Spring @RestController (UserController)
-// exposing six CRUD endpoints and delegating all logic to a @Autowired
-// UserService. Go has no annotation-driven routing or automatic JSON
-// (de)serialization, so:
-//   - Field injection (@Autowired) becomes explicit constructor injection via
-//     NewUserController.
-//   - @GetMapping/@PostMapping/etc. become explicit chi route registrations in
-//     RegisterRoutes.
-//   - @RequestBody becomes json.NewDecoder(r.Body).Decode(...).
-//   - @PathVariable becomes chi.URLParam(...); non-numeric {id} yields 400.
-//   - @Valid is preserved asymmetrically exactly as the source had it:
-//     saveUser validates the decoded User; updateUser does NOT.
-//   - ResponseEntity<String> becomes writing a plain-text body with 200 OK.
-//   - Checked UserNotFoundException propagation is replaced by returning the
-//     error to apperror.WriteError, which maps it to the correct HTTP status.
 package handler
 
 import (
@@ -70,18 +51,18 @@ func (h *UserController) RegisterRoutes(r chi.Router) {
 func (h *UserController) SaveUser(w http.ResponseWriter, r *http.Request) {
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		apperror.WriteError(w, r, badRequestError(err))
+		apperror.WriteError(w, badRequestError(err))
 		return
 	}
 
 	// @Valid on saveUser is preserved: validate the decoded body.
 	if err := h.validate.Struct(&user); err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 
-	if err := h.userService.SaveUser(r.Context(), &user); err != nil {
-		apperror.WriteError(w, r, err)
+	if _, err := h.userService.SaveUser(r.Context(), &user); err != nil {
+		apperror.WriteError(w, err)
 		return
 	}
 
@@ -93,7 +74,7 @@ func (h *UserController) SaveUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserController) FetchUserList(w http.ResponseWriter, r *http.Request) {
 	users, err := h.userService.FetchUserList(r.Context())
 	if err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, users)
@@ -105,13 +86,13 @@ func (h *UserController) FetchUserList(w http.ResponseWriter, r *http.Request) {
 func (h *UserController) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 
-	user, err := h.userService.FetchUserByID(r.Context(), id)
+	user, err := h.userService.FetchUserByID(r.Context(), int64(id))
 	if err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
@@ -122,12 +103,12 @@ func (h *UserController) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 func (h *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 
-	if err := h.userService.DeleteUser(r.Context(), id); err != nil {
-		apperror.WriteError(w, r, err)
+	if err := h.userService.DeleteUser(r.Context(), int64(id)); err != nil {
+		apperror.WriteError(w, err)
 		return
 	}
 	writeText(w, http.StatusOK, "user data deleted Successfully")
@@ -141,18 +122,18 @@ func (h *UserController) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *UserController) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDParam(r, "id")
 	if err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 
 	var user model.User
 	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		apperror.WriteError(w, r, badRequestError(err))
+		apperror.WriteError(w, badRequestError(err))
 		return
 	}
 
-	if err := h.userService.UpdateUser(r.Context(), id, &user); err != nil {
-		apperror.WriteError(w, r, err)
+	if err := h.userService.UpdateUser(r.Context(), int64(id), &user); err != nil {
+		apperror.WriteError(w, err)
 		return
 	}
 
@@ -167,7 +148,7 @@ func (h *UserController) GetUserByName(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.userService.GetUserByName(r.Context(), name)
 	if err != nil {
-		apperror.WriteError(w, r, err)
+		apperror.WriteError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
