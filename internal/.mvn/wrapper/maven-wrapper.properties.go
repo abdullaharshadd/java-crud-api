@@ -1,38 +1,35 @@
-// Package wrapper documents the migration of the Maven Wrapper
-// configuration (.mvn/wrapper/maven-wrapper.properties) to the Go toolchain.
+// Package wrapper preserves, for reference only, the build-tooling
+// requirements that were expressed in the Maven Wrapper configuration file
+// (.mvn/wrapper/maven-wrapper.properties) of the original Java project.
 //
-// MIGRATION_NOTE: maven-wrapper.properties is a Maven Wrapper descriptor,
-// not application logic. It pins the Maven distribution and wrapper JAR
-// versions so every developer/CI runner builds with an identical Maven,
-// guaranteeing reproducible Java builds. There is no line of executable
-// behavior to port — nothing in it maps to a runtime code path.
+// MIGRATION_NOTE: The source file is NOT executable business logic. It is a
+// Maven Wrapper (mvnw) configuration file that told the Java build which Maven
+// distribution and wrapper JAR to download so builds were reproducible across
+// machines. Go has no direct equivalent: reproducible builds are handled by the
+// Go toolchain itself (the `go` directive in go.mod, and optionally a
+// `toolchain` directive / GOTOOLCHAIN env var). There is therefore no code to
+// migrate. This file exists only to record the original Java/Maven version
+// requirements as documented constants so the information survives the
+// migration and can be consulted during a manual review of the build setup.
 //
-// Go has no direct in-source analogue. The equivalent "reproducible build
-// tooling" responsibilities are handled by:
-//
-//   - The `go` directive + `toolchain` line in go.mod
-//         -> pins the Go language/toolchain version, replacing the pinned
-//            Maven distribution (distributionUrl). Since Go 1.21 the
-//            `toolchain` directive lets `go` auto-download and use an exact
-//            toolchain version, mirroring what mvnw does for Maven.
-//   - go.mod / go.sum
-//         -> pin and checksum-verify every dependency version, replacing
-//            Maven's role of resolving artifacts (wrapperUrl fetched the
-//            wrapper JAR that did that resolution in Java).
-//   - The absence of a wrapper script
-//         -> Go's single self-contained toolchain removes the need for a
-//            mvnw/mvnw.cmd bootstrap script and its wrapper JAR entirely.
-//
-// The original file's data, retained here for reference only:
-//
-//   distributionUrl = https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.8.7/apache-maven-3.8.7-bin.zip
-//   wrapperUrl      = https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.1/maven-wrapper-3.1.1.jar
-//
-// i.e. Apache Maven 3.8.7 with Maven Wrapper 3.1.1. These version pins are
-// no longer meaningful once the project is a Go module; capture the target
-// Go toolchain version in go.mod instead.
-//
-// No exported symbols are declared: there is genuinely no behavior to
-// migrate, and inventing one would be misleading. This file exists purely
-// to record the migration decision.
+// Nothing here participates in the running application. It declares no HTTP
+// routes (there were none to register) and touches no database.
 package wrapper
+
+const (
+	// MavenDistributionURL is the Maven distribution the original Java project
+	// pinned via distributionUrl in maven-wrapper.properties. Recorded here for
+	// reference; the Go build does not use Maven.
+	MavenDistributionURL = "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/3.8.7/apache-maven-3.8.7-bin.zip"
+
+	// MavenWrapperURL is the Maven Wrapper JAR the original Java project pinned
+	// via wrapperUrl in maven-wrapper.properties. Recorded here for reference;
+	// the Go build does not use Maven.
+	MavenWrapperURL = "https://repo.maven.apache.org/maven2/org/apache/maven/wrapper/maven-wrapper/3.1.1/maven-wrapper-3.1.1.jar"
+
+	// MavenVersion is the Apache Maven version the Java project targeted.
+	MavenVersion = "3.8.7"
+
+	// MavenWrapperVersion is the maven-wrapper version the Java project targeted.
+	MavenWrapperVersion = "3.1.1"
+)
