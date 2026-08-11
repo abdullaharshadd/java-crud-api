@@ -20,6 +20,17 @@ import (
 	"migrated-app/internal/smartcontact/service"
 )
 
+const createUsersTable = `
+CREATE TABLE IF NOT EXISTS users (
+    user_id       SERIAL PRIMARY KEY,
+    user_name     TEXT NOT NULL,
+    user_email    TEXT NOT NULL UNIQUE,
+    user_password TEXT NOT NULL,
+    user_role     TEXT NOT NULL DEFAULT '',
+    user_about    TEXT NOT NULL DEFAULT ''
+);
+`
+
 func buildRouter() http.Handler {
 	dsn := os.Getenv("DATABASE_URL")
 	if dsn == "" {
@@ -33,8 +44,22 @@ func buildRouter() http.Handler {
 		if err != nil {
 			log.Fatal().Err(err).Msg("failed to open database connection")
 		}
-		if err := db.Ping(); err != nil {
-			log.Warn().Err(err).Msg("database ping failed; continuing without verified DB connection")
+
+		// Retry ping to allow the DB container to finish starting up.
+		for i := 0; i < 10; i++ {
+			if err = db.Ping(); err == nil {
+				break
+			}
+			log.Warn().Err(err).Msg("database ping failed; retrying in 1s")
+			time.Sleep(time.Second)
+		}
+		if err != nil {
+			log.Warn().Err(err).Msg("database ping still failing; continuing anyway")
+		}
+
+		// Ensure the schema exists.
+		if _, err := db.Exec(createUsersTable); err != nil {
+			log.Fatal().Err(err).Msg("failed to create users table")
 		}
 	}
 
