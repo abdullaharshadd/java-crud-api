@@ -22,7 +22,7 @@ package service
 import (
 	"context"
 
-	"github.com/smartContact/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserService describes the user-related business operations exposed to the
