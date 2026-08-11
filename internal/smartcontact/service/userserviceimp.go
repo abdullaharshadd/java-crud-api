@@ -23,8 +23,8 @@ import (
 	"context"
 	"fmt"
 
-	apperr "github.com/smartContact/internal/smartcontact/error"
-	"github.com/smartContact/internal/smartcontact/model"
+	apperr "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // userRepository is the subset of repository.UserDao behavior that the service
