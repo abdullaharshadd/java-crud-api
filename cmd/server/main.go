@@ -12,62 +12,72 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/rs/zerolog/log"
 
-	"migrated-app/internal/smartcontact/handler"
-	"migrated-app/internal/smartcontact/repository"
-	"migrated-app/internal/smartcontact/service"
-
 	smartcontact "migrated-app/internal/smartcontact"
+	"migrated-app/internal/smartcontact/repository"
 )
 
-func buildRouter() http.Handler {
+func main() {
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		log.Warn().Msg("DATABASE_URL not set; database-backed routes will be unavailable")
-		return smartcontact.BuildRouterWith(nil)
+		databaseURL = "postgres://app:app@migrator-sandbox-db:5432/app?sslmode=disable"
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	db, err := sql.Open("pgx", databaseURL)
+	var db *sql.DB
+	var err error
+
+	// Retry connecting to the database up to 10 times with backoff.
+	for i := 0; i < 10; i++ {
+		db, err = sql.Open("pgx", databaseURL)
+		if err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			err = db.PingContext(ctx)
+			cancel()
+		}
+		if err == nil {
+			break
+		}
+		log.Warn().Err(err).Msgf("db not ready, retry %d/10", i+1)
+		time.Sleep(2 * time.Second)
+	}
 	if err != nil {
-		log.Error().Err(err).Msg("failed to open database connection; routes will be stubs")
-		return smartcontact.BuildRouterWith(nil)
+		log.Fatal().Err(err).Msg("could not connect to database")
 	}
 
-	userDAO, err := repository.NewUserDao(ctx, db)
-	if err != nil {
-		log.Error().Err(err).Msg("failed to initialise UserDao; routes will be stubs")
-		return smartcontact.BuildRouterWith(nil)
+	// Ensure schema exists.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := repository.InitSchema(ctx, db); err != nil {
+		cancel()
+		log.Fatal().Err(err).Msg("failed to initialise schema")
 	}
+	cancel()
 
-	userSvc := service.NewUserService(userDAO)
-	userCtrl := handler.NewUserController(userSvc, nil)
-
-	return smartcontact.BuildRouterWith(userCtrl)
-}
-
-func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	router := smartcontact.BuildRouterWith(db)
 
 	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: buildRouter(),
+		Addr:    ":" + port,
+		Handler: router,
 	}
 
 	go func() {
+		log.Info().Msgf("listening on :%s", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal().Err(err).Msg("server error")
 		}
 	}()
 
-	log.Info().Msg("server started on :8080")
-	<-ctx.Done()
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(shutCtx); err != nil {
-		log.Error().Err(err).Msg("graceful shutdown failed")
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal().Err(err).Msg("server shutdown error")
 	}
+	log.Info().Msg("server stopped")
 }
