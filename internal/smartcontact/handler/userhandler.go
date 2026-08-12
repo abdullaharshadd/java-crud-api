@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -72,7 +73,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 	user, err := h.svc.FetchUserByID(r.Context(), id)
 	if err != nil {
 		var nf *apperr.UserNotFound
-		if errAs(err, &nf) {
+		if errors.As(err, &nf) {
 			writeError(w, http.StatusNotFound, err.Error())
 			return
 		}
@@ -132,13 +133,4 @@ func (h *UserHandler) GetUserByName(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, user)
-}
-
-// errAs is a thin wrapper so the handler file doesn't import errors directly.
-func errAs(err error, target any) bool {
-	type asInterface interface {
-		As(any) bool
-	}
-	// use standard errors.As via interface
-	return asErr(err, target)
 }
