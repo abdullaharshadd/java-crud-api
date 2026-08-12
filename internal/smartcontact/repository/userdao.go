@@ -1,19 +1,3 @@
-// Package repository provides data-access implementations for the smartcontact
-// application. It replaces Spring Data JPA repositories with explicit
-// database/sql-backed methods against PostgreSQL.
-//
-// MIGRATION_NOTE: The Java source was a Spring Data JPA interface
-// (UserDao extends JpaRepository<User, Integer>) with a single derived query
-// method findByName. Spring auto-generated the CRUD implementation and the
-// findByName proxy at runtime. Go has no equivalent runtime proxy mechanism,
-// so we implement a concrete UserDao struct that owns a *sql.DB and issues raw
-// SQL. The inherited JpaRepository CRUD surface (save, findById, findAll,
-// deleteById, existsById, count) is realized as explicit methods so callers
-// that relied on those operations continue to work.
-//
-// Per the migration debate notes, a sentinel ErrNoRowsDeleted replicates
-// Spring's EmptyResultDataAccessException behavior when deleting a
-// non-existent id.
 package repository
 
 import (
@@ -49,8 +33,12 @@ var ErrUserNotFound = errors.New("repository: user not found")
 // assigned by the database and returned via RETURNING id on INSERT.
 const createUsersTableDDL = `
 CREATE TABLE IF NOT EXISTS users (
-	id    INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-	name  TEXT NOT NULL
+	id       INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	name     TEXT NOT NULL,
+	email    TEXT NOT NULL DEFAULT '',
+	password TEXT NOT NULL DEFAULT '',
+	role     TEXT NOT NULL DEFAULT '',
+	about    TEXT NOT NULL DEFAULT ''
 )`
 
 // UserDao provides CRUD and query access to User records backed by a
@@ -83,10 +71,10 @@ func NewUserDao(ctx context.Context, db *sql.DB) (*UserDao, error) {
 // match was found; idiomatic Go returns (nil, ErrUserNotFound) instead so the
 // caller must handle the missing case explicitly.
 func (d *UserDao) FindByName(ctx context.Context, name string) (*model.User, error) {
-	const query = `SELECT id, name FROM users WHERE name = $1`
+	const query = `SELECT id, name, email, password, role, about FROM users WHERE name = $1`
 
 	var u model.User
-	err := d.db.QueryRowContext(ctx, query, name).Scan(&u.ID, &u.Name)
+	err := d.db.QueryRowContext(ctx, query, name).Scan(&u.ID, &u.Name, &u.Email, &u.Password, &u.Role, &u.About)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ErrUserNotFound
@@ -99,10 +87,10 @@ func (d *UserDao) FindByName(ctx context.Context, name string) (*model.User, err
 // FindByID returns the user with the given id, replacing JpaRepository.findById.
 // It returns ErrUserNotFound when no row matches.
 func (d *UserDao) FindByID(ctx context.Context, id int) (*model.User, error) {
-	const query = `SELECT id, name FROM users WHERE id = $1`
+	const query = `SELECT id, name, email, password, role, about FROM users WHERE id = $1`
 
 	var u model.User
-	err := d.db.QueryRowContext(ctx, query, id).Scan(&u.ID, &u.Name)
+	err := d.db.QueryRowContext(ctx, query, id).Scan(&u.ID, &u.Name, &u.Email, &u.Password, &u.Role, &u.About)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, ErrUserNotFound
@@ -114,7 +102,7 @@ func (d *UserDao) FindByID(ctx context.Context, id int) (*model.User, error) {
 
 // FindAll returns every user, replacing JpaRepository.findAll.
 func (d *UserDao) FindAll(ctx context.Context) ([]model.User, error) {
-	const query = `SELECT id, name FROM users ORDER BY id`
+	const query = `SELECT id, name, email, password, role, about FROM users ORDER BY id`
 
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
@@ -125,7 +113,7 @@ func (d *UserDao) FindAll(ctx context.Context) ([]model.User, error) {
 	var users []model.User
 	for rows.Next() {
 		var u model.User
-		if err := rows.Scan(&u.ID, &u.Name); err != nil {
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Password, &u.Role, &u.About); err != nil {
 			return nil, fmt.Errorf("scanning user row: %w", err)
 		}
 		users = append(users, u)
@@ -146,15 +134,15 @@ func (d *UserDao) Save(ctx context.Context, u *model.User) (*model.User, error) 
 	}
 
 	if u.ID == 0 {
-		const insert = `INSERT INTO users (name) VALUES ($1) RETURNING id`
-		if err := d.db.QueryRowContext(ctx, insert, u.Name).Scan(&u.ID); err != nil {
+		const insert = `INSERT INTO users (name, email, password, role, about) VALUES ($1, $2, $3, $4, $5) RETURNING id`
+		if err := d.db.QueryRowContext(ctx, insert, u.Name, u.Email, u.Password, u.Role, u.About).Scan(&u.ID); err != nil {
 			return nil, fmt.Errorf("inserting user: %w", err)
 		}
 		return u, nil
 	}
 
-	const update = `UPDATE users SET name = $1 WHERE id = $2`
-	res, err := d.db.ExecContext(ctx, update, u.Name, u.ID)
+	const update = `UPDATE users SET name = $1, email = $2, password = $3, role = $4, about = $5 WHERE id = $6`
+	res, err := d.db.ExecContext(ctx, update, u.Name, u.Email, u.Password, u.Role, u.About, u.ID)
 	if err != nil {
 		return nil, fmt.Errorf("updating user %d: %w", u.ID, err)
 	}
