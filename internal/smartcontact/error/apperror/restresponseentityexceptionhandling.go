@@ -9,7 +9,6 @@ import (
 
 	apperr "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/model"
-	"migrated-app/internal/smartcontact/repository"
 )
 
 // ValidationError marks an error as a client-side validation failure so the
@@ -37,6 +36,12 @@ func NewValidationError(message string) *ValidationError {
 	return &ValidationError{Message: message}
 }
 
+// ErrUserNotFound is a sentinel error for a missing user.
+var ErrUserNotFound = errors.New("user not found")
+
+// ErrNoRowsDeleted is a sentinel error when a delete operation affects no rows.
+var ErrNoRowsDeleted = errors.New("no rows deleted")
+
 // StatusFor inspects err and returns the HTTP status code the application uses
 // for it, mirroring the Spring @ExceptionHandler mappings agreed during
 // migration.
@@ -55,11 +60,11 @@ func StatusFor(err error) int {
 		return http.StatusBadRequest
 	}
 
-	if errors.Is(err, repository.ErrUserNotFound) {
+	if errors.Is(err, ErrUserNotFound) {
 		return http.StatusNotFound
 	}
 
-	if errors.Is(err, repository.ErrNoRowsDeleted) {
+	if errors.Is(err, ErrNoRowsDeleted) {
 		return http.StatusInternalServerError
 	}
 
