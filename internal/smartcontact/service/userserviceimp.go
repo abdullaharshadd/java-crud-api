@@ -1,22 +1,3 @@
-// Package service defines the business-logic contracts and implementations for
-// the smartcontact application. It sits between the HTTP handlers and the
-// repository layer.
-//
-// MIGRATION_NOTE: The Java source was the Spring @Service implementation class
-// UserServiceImp implementing the UserService interface. In Go the interface
-// lives in userservice.go; this file supplies the concrete implementation.
-// Spring's field injection (@Autowired UserDao) is replaced by explicit
-// constructor injection via NewUserService. The repository dependency is
-// declared as an interface so the service can be tested with a fake DAO.
-//
-// Idiomatic Go changes from the source:
-//   - Every I/O method takes a context.Context as its first parameter for
-//     cancellation/deadline propagation.
-//   - fetchUserById's "not present" branch (Java Optional + thrown
-//     UserNotFoundException) becomes an explicit (*User, error) return using
-//     apperr.NewUserNotFound.
-//   - updateUser still sets the id from the path variable on the incoming user
-//     before delegating to Save, preserving the original business logic.
 package service
 
 import (
