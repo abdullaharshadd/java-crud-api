@@ -24,7 +24,7 @@ func NewUserHandler(svc service.UserService) *UserHandler {
 	return &UserHandler{svc: svc}
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+func writeJSONResponse(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
@@ -33,7 +33,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, model.NewErrorMessage(status, message))
+	writeJSONResponse(w, status, model.NewErrorMessage(status, message))
 }
 
 // CreateUser handles POST /users
@@ -49,7 +49,7 @@ func (h *UserHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusCreated, saved)
+	writeJSONResponse(w, http.StatusCreated, saved)
 }
 
 // ListUsers handles GET /users
@@ -60,7 +60,7 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, users)
+	writeJSONResponse(w, http.StatusOK, users)
 }
 
 // GetUser handles GET /users/{id}
@@ -81,7 +81,7 @@ func (h *UserHandler) GetUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSONResponse(w, http.StatusOK, user)
 }
 
 // UpdateUser handles PUT /users/{id}
@@ -101,7 +101,7 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"message": "user updated"})
+	writeJSONResponse(w, http.StatusOK, map[string]string{"message": "user updated"})
 }
 
 // DeleteUser handles DELETE /users/{id}
@@ -116,7 +116,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"message": "user deleted"})
+	writeJSONResponse(w, http.StatusOK, map[string]string{"message": "user deleted"})
 }
 
 // GetUserByName handles GET /users/name/{name}
@@ -132,5 +132,5 @@ func (h *UserHandler) GetUserByName(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "user not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, user)
+	writeJSONResponse(w, http.StatusOK, user)
 }
