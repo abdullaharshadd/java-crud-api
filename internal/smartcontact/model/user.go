@@ -15,7 +15,7 @@ type User struct {
 }
 
 // Validate checks if the user's required fields are set.
-func (u *User) Validate() error {
+func (u *User) Validate() error.Error {
 	if u.Name == "" {
 		return error.NewValidationError("Please add the user name")
 	}
