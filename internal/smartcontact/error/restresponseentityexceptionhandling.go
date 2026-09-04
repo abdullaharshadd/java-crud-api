@@ -14,7 +14,7 @@ func UserNotFoundMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		if err := r.Context().Value("error"); err != nil {
 			if _, ok := err.(repository.UserNotFoundError); ok {
-				errMessage := model.NewErrorMessage(http.StatusNotFound, err.Error())
+				errMessage := model.NewErrorMessage(http.StatusNotFound, err.(error).Error())
 				w.WriteHeader(http.StatusNotFound)
 				if err := model.ToHTTPError(w, errMessage); err != nil {
 					log.Err(err).Msg("failed to write error response")
