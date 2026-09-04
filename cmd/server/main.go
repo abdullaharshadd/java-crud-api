@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -27,8 +26,8 @@ func buildRouter() *gin.Engine {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
-	dbRepo := repository.newUserRepository(db)
-	userSvc := service.newUserService(dbRepo)
+	dbRepo := repository.NewUserRepository(db)
+	userSvc := service.NewUserService(dbRepo)
 	userCtrl := handler.NewUserController(userSvc)
 	r := gin.Default()
 	handler.RegisterRoutes(r, userCtrl)
@@ -58,8 +57,12 @@ func main() {
 	<-ctx.Done()
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	delayedCancel := time.AfterFunc(10*time.Second, cancel)
+	delayedCancel.Stop()
+
 	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Error().Err(err).Msg("graceful shutdown failed")
 	}
+
+	log.Info().Msg("Server exiting")
 }
