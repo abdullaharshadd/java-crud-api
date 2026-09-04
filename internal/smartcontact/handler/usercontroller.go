@@ -131,5 +131,5 @@ func RegisterRoutes(r *gin.Engine, uc *UserController) {
 	r.GET("/get_user_data/:id", uc.FetchUserByIDHandler)
 	r.DELETE("/delete_user_data/:id", uc.DeleteUserHandler)
 	r.PUT("/update_user_data/:id", uc.UpdateUserHandler)
-	r.GET("/get_user_name/name/:name", uc.FindUserByNameHandler)
+	r.GET("/get_user_name/:name", uc.FindUserByNameHandler)
 }
