@@ -17,7 +17,7 @@ type User struct {
 // Validate checks if the user's required fields are set.
 func (u *User) Validate() error {
 	if u.Name == "" {
-		return error.NewUserNotFoundError("Please add the user name", nil)
+		return error.NewValidationError("Please add the user name")
 	}
 	return nil
 }
