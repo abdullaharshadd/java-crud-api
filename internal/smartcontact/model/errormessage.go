@@ -1,7 +1,7 @@
 package model
 
 import (
-	"net/http"
+	"errors"
 )
 
 // ErrorMessage represents an error message with an HTTP status and a message.
@@ -26,18 +26,7 @@ func FromHTTPError(status int, err error) *ErrorMessage {
 	return NewErrorMessage(status, err.Error())
 }
 
-// ToHTTPError converts an ErrorMessage to an HTTP error.
+// ToHTTPError converts an ErrorMessage to an error.
 func (e *ErrorMessage) ToHTTPError() error {
-	return &httpError{
-		errorMessage: e,
-	}
-}
-
-// httpError wraps an ErrorMessage to implement the error interface.
-type httpError struct {
-	errorMessage *ErrorMessage
-}
-
-func (h *httpError) Error() string {
-	return h.errorMessage.Message
+	return errors.New(e.Message)
 }
