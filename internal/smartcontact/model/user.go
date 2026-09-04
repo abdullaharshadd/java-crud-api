@@ -1,6 +1,8 @@
 package model
 
-import "fmt"
+import (
+	"migrated-app/internal/smartcontact/error"
+)
 
 // User represents a user entity in the system.
 type User struct {
@@ -15,7 +17,7 @@ type User struct {
 // Validate checks if the user's required fields are set.
 func (u *User) Validate() error {
 	if u.Name == "" {
-		return NewUserNotFoundError("Please add the user name", nil)
+		return error.NewUserNotFoundError("Please add the user name", nil)
 	}
 	return nil
 }
