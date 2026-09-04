@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"migrated-app/internal/smartcontact/model"
 	"migrated-app/internal/smartcontact/handler"
+	"github.com/rs/zerolog/log"
 )
 
 // Middleware to handle UserNotFoundException.
