@@ -7,9 +7,9 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"migrated-app/internal/smartcontact/error"
-	"migrated-app/internal/smartcontact/model"
 	"migrated-app/internal/smartcontact/service"
+	"migrated-app/internal/smartcontact/repository"
+	"migrated-app/internal/smartcontact/model"
 )
 
 // UserController handles user-related HTTP requests.
@@ -32,7 +32,7 @@ func (uc *UserController) SaveUserHandler(c *gin.Context) {
 		return
 	}
 	ctx := context.Background()
-	if _, err := uc.SaveUser(ctx, &user); err != nil {
+	if _, err := uc.UserService.SaveUser(ctx, &user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -42,7 +42,7 @@ func (uc *UserController) SaveUserHandler(c *gin.Context) {
 // FetchUserListHandler fetches a list of all users.
 func (uc *UserController) FetchUserListHandler(c *gin.Context) {
 	ctx := context.Background()
-	users, err := uc.FetchUserList(ctx)
+	users, err := uc.UserService.FetchUserList(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -59,8 +59,8 @@ func (uc *UserController) FetchUserByIDHandler(c *gin.Context) {
 		return
 	}
 	ctx := context.Background()
-	user, err := uc.FetchUserByID(ctx, id)
-	if errors.Is(err, usererror.NewUserNotFoundError()) {
+	user, err := uc.UserService.FetchUserByID(ctx, id)
+	if repository.IsUserNotFoundError(err) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -80,7 +80,7 @@ func (uc *UserController) DeleteUserHandler(c *gin.Context) {
 		return
 	}
 	ctx := context.Background()
-	if err := uc.DeleteUser(ctx, id); err != nil {
+	if err := uc.UserService.DeleteUser(ctx, id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -101,7 +101,7 @@ func (uc *UserController) UpdateUserHandler(c *gin.Context) {
 		return
 	}
 	ctx := context.Background()
-	if err := uc.UpdateUser(ctx, id, &user); err != nil {
+	if err := uc.UserService.UpdateUser(ctx, id, &user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -112,8 +112,8 @@ func (uc *UserController) UpdateUserHandler(c *gin.Context) {
 func (uc *UserController) FindUserByNameHandler(c *gin.Context) {
 	name := c.Param("name")
 	ctx := context.Background()
-	user, err := uc.FindByName(ctx, name)
-	if errors.Is(err, usererror.NewUserNotFoundError()) {
+	user, err := uc.UserService.FindByName(ctx, name)
+	if repository.IsUserNotFoundError(err) {
 		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
