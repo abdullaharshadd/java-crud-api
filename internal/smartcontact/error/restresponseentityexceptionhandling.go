@@ -17,7 +17,7 @@ func UserNotFoundMiddleware(next http.Handler) http.Handler {
 				errMessage := model.NewErrorMessage(http.StatusNotFound, err.Error())
 				w.WriteHeader(http.StatusNotFound)
 				if err := model.ToHTTPError(w, errMessage); err != nil {
-					log.Printf("failed to write error response: %v", err)
+					log.Err(err).Msg("failed to write error response")
 				}
 			}
 		}
