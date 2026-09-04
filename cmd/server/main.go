@@ -8,15 +8,39 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
+	"migrated-app/internal/config"
+	"migrated-app/internal/smartcontact/handler"
+	"migrated-app/internal/smartcontact/service"
+	"migrated-app/internal/smartcontact/repository"
+	"database/sql"
+	_ "github.com/lib/pq"
 )
+
+func buildRouter() *gin.Engine {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to load config")
+	}
+	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to connect to database")
+	}
+	dbRepo := repository.newUserRepository(db)
+	userSvc := service.newUserService(dbRepo)
+	userCtrl := handler.NewUserController(userSvc)
+	r := gin.Default()
+	handler.RegisterRoutes(r, userCtrl)
+	return r
+}
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":" + config.Load().Port,
 		Handler: buildRouter(),
 	}
 
@@ -26,7 +50,7 @@ func main() {
 		}
 	}()
 
-	log.Info().Msg("server started on :8080")
+	log.Info().Msg("server started on :" + config.Load().Port)
 	<-ctx.Done()
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
