@@ -14,7 +14,7 @@ import (
 
 // UserController handles user-related HTTP requests.
 type UserController struct {
-	service.UserService
+	UserService service.UserService
 }
 
 // NewUserController creates a new instance of UserController.
