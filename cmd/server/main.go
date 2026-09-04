@@ -39,8 +39,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to load config")
+	}
 	srv := &http.Server{
-		Addr:    ":" + config.Load().Port,
+		Addr:    ":" + cfg.Port,
 		Handler: buildRouter(),
 	}
 
@@ -50,7 +54,7 @@ func main() {
 		}
 	}()
 
-	log.Info().Msg("server started on :" + config.Load().Port)
+	log.Info().Msg("server started on :" + cfg.Port)
 	<-ctx.Done()
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
