@@ -31,9 +31,9 @@ func (ur *userRepository) FindByName(ctx context.Context, name string) (*model.U
 	var user model.User
 	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.About); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return nil, NewUserNotFoundError("User not found", nil)
+			return nil, errors.New("User not found")
 		}
-		return nil, NewUserNotFoundError("Failed to retrieve user", err)
+		return nil, errors.New("Failed to retrieve user: " + err.Error())
 	}
 	return &user, nil
 }
