@@ -2,18 +2,21 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"migrated-app/internal/smartcontact/repository"
 	"migrated-app/internal/smartcontact/model"
 )
 
-type UserController struct {
-	UserRepo repository.UserRepository
-}
+func GetUserHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	id := 1 // Example ID
+	userRepo := repository.NewUserRepository()
 
-func (uc *UserController) GetUserByID(ctx context.Context, id int) (*model.User, error) {
-	return uc.UserRepo.GetUserByID(ctx, id)
-}
+	user, err := userRepo.GetUser(ctx, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 
-func NewUserController(userRepo repository.UserRepository) *UserController {
-	return &UserController{UserRepo: userRepo}
+	json.NewEncoder(w).Encode(user)
 }
