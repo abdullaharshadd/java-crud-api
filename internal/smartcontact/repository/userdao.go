@@ -1,56 +1,49 @@
+```go
 package repository
 
 import (
-	"context"
-	"database/sql"
-	"errors"
-	"fmt"
-
 	"migrated-app/internal/smartcontact/model"
+	"database/sql"
+	"fmt"
+	"log"
 )
 
-var (
-	ErrUserNotFound = errors.New("user not found")
-)
-
-type UserRepository struct {
-	db *sql.DB
+// UserDao represents a user data access object.
+type UserDao struct {
+	DB *sql.DB
 }
 
-func NewUserRepository(db *sql.DB) *UserRepository {
-	return &UserRepository{db: db}
+// NewUserDao creates a new instance of UserDao.
+func NewUserDao(db *sql.DB) *UserDao {
+	return &UserDao{DB: db}
 }
 
-func (ur *UserRepository) SaveUser(ctx context.Context, user *model.User) error {
-	// Save user logic
-	return nil
+// CreateUser inserts a new user into the database.
+func (ud *UserDao) CreateUser(user model.User) (model.User, error) {
+	sqlStatement := `
+	INSERT INTO users (name, email, password, role, about)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING id`
+	err := ud.DB.QueryRow(sqlStatement, user.Name, user.Email, user.Password, user.Role, user.About).Scan(&user.ID)
+	if err != nil {
+		log.Println(fmt.Sprintf("Unable to execute query. %v", err))
+		return user, err
+	}
+	return user, nil
 }
 
-func (ur *UserRepository) FetchUserList(ctx context.Context) ([]*model.User, error) {
-	// Fetch user list logic
-	return nil, nil
+// GetUser retrieves a user by ID.
+func (ud *UserDao) GetUser(id string) (model.User, error) {
+	sqlStatement := `SELECT id, name, email, password, role, about FROM users WHERE id=$1;`
+	row := ud.DB.QueryRow(sqlStatement, id)
+	var user model.User
+	err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.About)
+	if err == sql.ErrNoRows {
+		return user, fmt.Errorf("user with id %s not found", id)
+	} else if err != nil {
+		log.Println(fmt.Sprintf("Unable to scan row. %v", err))
+		return user, err
+	}
+	return user, nil
 }
-
-func (ur *UserRepository) FetchUserByID(ctx context.Context, id int) (*model.User, error) {
-	// Fetch user by ID logic
-	return nil, ErrUserNotFound
-}
-
-func (ur *UserRepository) DeleteUser(ctx context.Context, id int) error {
-	// Delete user logic
-	return nil
-}
-
-func (ur *UserRepository) UpdateUser(ctx context.Context, id int, user *model.User) error {
-	// Update user logic
-	return nil
-}
-
-func (ur *UserRepository) FindByName(ctx context.Context, name string) (*model.User, error) {
-	// Find user by name logic
-	return nil, ErrUserNotFound
-}
-
-func IsUserNotFoundError(err error) bool {
-	return err == ErrUserNotFound
-}
+```
