@@ -1,39 +1,18 @@
+```go
 package repository
 
 import (
-	"context"
 	"database/sql"
-	"errors"
 	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/errors"
 )
 
-// UserRepository defines the methods for interacting with the user table.
-type UserRepository interface {
-	FindByName(context.Context, string) (*model.User, error)
+type UserRepository struct {
+	DB *sql.DB
 }
 
-// newUserRepository creates a new UserRepository instance.
-func newUserRepository(db *sql.DB) UserRepository {
-	return &userRepository{
-		db: db,
-	}
+func (r *UserRepository) GetUserByID(id int) (*model.User, error) {
+	// implementation
+	return nil, errors.NewAppError("GetUserByID", "User not found", nil)
 }
-
-// userRepository is the implementation of UserRepository.
-type userRepository struct {
-	db *sql.DB
-}
-
-// FindByName retrieves a user by their name.
-func (ur *userRepository) FindByName(ctx context.Context, name string) (*model.User, error) {
-	query := "SELECT id, name, email, password, role, about FROM users WHERE name = $1"
-	row := ur.db.QueryRowContext(ctx, query, name)
-	var user model.User
-	if err := row.Scan(&user.ID, &user.Name, &user.Email, &user.Password, &user.Role, &user.About); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, errors.New("User not found")
-		}
-		return nil, errors.New("Failed to retrieve user: " + err.Error())
-	}
-	return &user, nil
-}
+```
