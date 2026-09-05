@@ -2,8 +2,8 @@ package repository
 
 import (
 	"context"
-	"migrated-app/internal/smartcontact/model"
 	"database/sql"
+	"migrated-app/internal/smartcontact/model"
 	_ "github.com/lib/pq"
 )
 
