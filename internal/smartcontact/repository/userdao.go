@@ -2,19 +2,12 @@ package repository
 
 import (
 	"context"
-	"database/sql"
 	"migrated-app/internal/smartcontact/model"
 )
 
-type UserDAO struct {
-	DB *sql.DB
-}
+type UserDao struct{}
 
-func (ud *UserDAO) GetUserByID(ctx context.Context, id int) (*model.User, error) {
-	// Implementation of GetUserByID
+func (ud *UserDao) GetUser(ctx context.Context, id int) (*model.User, error) {
+	// Dummy implementation for demonstration purposes
 	return nil, nil
-}
-
-func NewUserDAO(db *sql.DB) *UserDAO {
-	return &UserDAO{DB: db}
 }
