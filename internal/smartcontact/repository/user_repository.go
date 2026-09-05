@@ -1,4 +1,3 @@
-```go
 package repository
 
 import (
@@ -40,4 +39,3 @@ func DeleteUser(id string) error {
 	_, err := db.Exec("DELETE FROM users WHERE id=$1", id)
 	return err
 }
-```
