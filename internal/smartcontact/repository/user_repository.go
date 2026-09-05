@@ -2,24 +2,24 @@ package repository
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"migrated-app/internal/smartcontact/model"
-	"github.com/jmoiron/sqlx"
+	"database/sql"
+	_ "github.com/lib/pq"
 )
 
-type UserRepository struct {
-	db *sqlx.DB
+type UserRepository interface {
+	GetUserByID(ctx context.Context, id int) (*model.User, error)
 }
 
-func (ur *UserRepository) GetUserByID(ctx context.Context, id int) (*model.User, error) {
-	user := &model.User{}
-	query := "SELECT * FROM users WHERE id = $1"
-	err := ur.db.GetContext(ctx, user, query, id)
-	if err == sql.ErrNoRows {
-		return nil, UserNotFoundError
-	} else if err != nil {
-		return nil, err
-	}
-	return user, nil
+type userRepository struct {
+	db *sql.DB
+}
+
+func NewUserRepository(db *sql.DB) UserRepository {
+	return &userRepository{db: db}
+}
+
+func (ur *userRepository) GetUserByID(ctx context.Context, id int) (*model.User, error) {
+	// Implementation of GetUserByID
+	return nil, nil
 }
