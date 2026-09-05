@@ -1,4 +1,3 @@
-```go
 package repository
 
 import (
@@ -46,4 +45,3 @@ func (ud *UserDao) GetUser(id string) (model.User, error) {
 	}
 	return user, nil
 }
-```
