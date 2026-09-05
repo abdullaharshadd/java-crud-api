@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"migrated-app/internal/smartcontact/repository"
-	"migrated-app/internal/smartcontact/model"
 )
 
 func GetUserHandler(w http.ResponseWriter, r *http.Request) {
