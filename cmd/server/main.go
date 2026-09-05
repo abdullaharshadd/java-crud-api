@@ -29,9 +29,8 @@ func buildRouter() *gin.Engine {
 	dbRepo := repository.NewUserRepository(db)
 	userSvc := service.NewUserService(dbRepo)
 	userCtrl := handler.NewUserController(userSvc)
-	r := gin.Default()
-	handler.RegisterRoutes(r, userCtrl)
-	return r
+	handler.RegisterRoutes(gin.Default(), userCtrl)
+	return gin.Default()
 }
 
 func main() {
