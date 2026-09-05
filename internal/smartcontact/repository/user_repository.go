@@ -1,21 +1,30 @@
+```go
 package repository
 
 import (
-	"context"
 	"migrated-app/internal/smartcontact/model"
+	"database/sql"
+	_ "github.com/lib/pq"
 )
 
-type UserRepository interface {
-	GetUserByID(ctx context.Context, id int) (*model.User, error)
+var db *sql.DB
+
+func init() {
+	// Initialize database connection
 }
 
-type userRepository struct{}
-
-func (ur *userRepository) GetUserByID(ctx context.Context, id int) (*model.User, error) {
-	// Implementation of GetUserByID
-	return nil, nil
+func GetUser(id string) (*model.User, error) {
+	// Get user from database
+	return &model.User{}, nil
 }
 
-func NewUserRepository() UserRepository {
-	return &userRepository{}
+func UpdateUser(user model.User) error {
+	// Update user in database
+	return nil
 }
+
+func DeleteUser(id string) error {
+	// Delete user from database
+	return nil
+}
+```
