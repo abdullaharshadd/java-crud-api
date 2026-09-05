@@ -3,7 +3,6 @@ package repository
 import (
 	"database/sql"
 	"migrated-app/internal/smartcontact/model"
-	"migrated-app/internal/smartcontact/errors"
 )
 
 type UserRepository struct {
@@ -12,5 +11,5 @@ type UserRepository struct {
 
 func (r *UserRepository) GetUserByID(id int) (*model.User, error) {
 	// implementation
-	return nil, errors.NewAppError("GetUserByID", "User not found", nil)
+	return nil, nil
 }
