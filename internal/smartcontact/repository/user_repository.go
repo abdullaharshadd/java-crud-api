@@ -4,27 +4,40 @@ package repository
 import (
 	"migrated-app/internal/smartcontact/model"
 	"database/sql"
-	_ "github.com/lib/pq"
+	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 )
 
-var db *sql.DB
+var db *sqlx.DB
 
-func init() {
-	// Initialize database connection
+func InitDB(dataSourceName string) error {
+	var err error
+	db, err = sqlx.Open("postgres", dataSourceName)
+	if err != nil {
+		return err
+	}
+	return db.Ping()
 }
 
 func GetUser(id string) (*model.User, error) {
-	// Get user from database
-	return &model.User{}, nil
+	var user model.User
+	err := db.Get(&user, "SELECT * FROM users WHERE id = $1", id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, pq.Error{Code: "404"}
+		}
+		return nil, err
+	}
+	return &user, nil
 }
 
 func UpdateUser(user model.User) error {
-	// Update user in database
-	return nil
+	_, err := db.NamedExec("UPDATE users SET name=:name, email=:email WHERE id=:id", user)
+	return err
 }
 
 func DeleteUser(id string) error {
-	// Delete user from database
-	return nil
+	_, err := db.Exec("DELETE FROM users WHERE id=$1", id)
+	return err
 }
 ```
