@@ -1,4 +1,3 @@
-```go
 package handler
 
 import (
@@ -52,4 +51,3 @@ func (uc *UserController) GetUser(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, user)
 }
-```
