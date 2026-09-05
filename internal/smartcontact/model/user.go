@@ -1,7 +1,7 @@
 package model
 
 import (
-	"internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/error"
 )
 
 // User represents a user entity in the system.
