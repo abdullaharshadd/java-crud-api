@@ -1,4 +1,3 @@
-```go
 package repository
 
 import (
@@ -15,4 +14,3 @@ func (r *UserRepository) GetUserByID(id int) (*model.User, error) {
 	// implementation
 	return nil, errors.NewAppError("GetUserByID", "User not found", nil)
 }
-```
