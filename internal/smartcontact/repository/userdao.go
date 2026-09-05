@@ -3,7 +3,7 @@ package repository
 import (
 	"database/sql"
 	"migrated-app/internal/smartcontact/model"
-	"migrated-app/internal/errors"
+	"migrated-app/internal/smartcontact/errors"
 )
 
 type UserRepository struct {
