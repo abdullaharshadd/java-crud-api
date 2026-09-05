@@ -22,12 +22,13 @@ func buildRouter() *gin.Engine {
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to load config")
 	}
-	db, err := sql.Open("postgres", cfg.DatabaseURL)
+	dbURL := "postgres://" + os.Getenv("DATABASE_USER") + ":" + os.Getenv("DATABASE_PASSWORD") + "@localhost:5432/barcode?sslmode=disable"
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal().Err(err).Msg("failed to connect to database")
 	}
 	dbRepo := repository.NewUserRepository(db)
-	userSvc := service.NewUserService(dbRepo)
+	userSvc := service.NewUserService(userRepo)
 	userCtrl := handler.NewUserController(userSvc)
 	handler.RegisterRoutes(gin.Default(), userCtrl)
 	return gin.Default()
