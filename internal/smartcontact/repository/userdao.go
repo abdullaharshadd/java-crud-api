@@ -1,4 +1,3 @@
-```go
 package repository
 
 import (
@@ -38,65 +37,3 @@ func (ur *UserRepository) GetUserByID(id int) (*model.User, error) {
 func IsUserNotFoundError(err error) bool {
 	return err == UserNotFoundError
 }
-```
-
-===EDIT_FILE: internal/smartcontact/repository/user_repository.go===
-```go
-package repository
-
-import (
-	"migrated-app/internal/smartcontact/model"
-	"database/sql"
-	"github.com/jmoiron/sqlx"
-	"github.com/rs/zerolog/log"
-)
-
-type UserRepository struct {
-	db *sqlx.DB
-}
-
-func NewUserRepository(db *sqlx.DB) *UserRepository {
-	return &UserRepository{db: db}
-}
-
-func (ur *UserRepository) GetUserByID(id int) (*model.User, error) {
-	var user model.User
-	query := "SELECT id, username, email FROM users WHERE id=$1;"
-	err := ur.db.Get(&user, query, id)
-	if err == sql.ErrNoRows {
-		return nil, UserNotFoundError
-	}
-	if err != nil {
-		log.Err(err).Msg("failed to get user by ID")
-		return nil, err
-	}
-	return &user, nil
-}
-```
-
-===EDIT_FILE: internal/smartcontact/service/userservice.go===
-```go
-package service
-
-import (
-	"migrated-app/internal/smartcontact/repository"
-	"github.com/rs/zerolog/log"
-)
-
-type UserService struct {
-	userRepo repository.UserRepository
-}
-
-func NewUserService(userRepo repository.UserRepository) *UserService {
-	return &UserService{userRepo: userRepo}
-}
-
-func (us *UserService) GetUserByID(id int) (*repository.User, error) {
-	user, err := us.userRepo.GetUserByID(id)
-	if err != nil {
-		log.Err(err).Msg("failed to get user by ID")
-		return nil, err
-	}
-	return user, nil
-}
-```
