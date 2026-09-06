@@ -3,17 +3,36 @@ package handler
 import (
 	"migrated-app/internal/smartcontact/repository"
 	"migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/service"
 	"net/http"
+	"context"
 )
 
-func GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	id := r.URL.Query().Get("id")
-	user, err := repository.GetUser(ctx, id)
+func NewUserController(svc service.UserService) *UserController {
+	return &UserController{userService: svc}
+}
+
+type UserController struct {
+	userService service.UserService
+}
+
+func (uc *UserController) RegisterRoutes(r *gin.Engine) {
+	r.GET("/users/:id", uc.GetUserHandler)
+}
+
+func (uc *UserController) GetUserHandler(c *gin.Context) {
+	ctx := context.TODO()
+	id := c.Param("id")
+	userID, err := strconv.Atoi(id)
 	if err != nil {
-		error.HandleError(w, err)
+		error.HandleError(c.Writer, err)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(user.Name))
+	user, err := uc.userService.GetUser(ctx, userID)
+	if err != nil {
+		c.Error(err)
+		c.Abort()
+		return
+	}
+	c.JSON(http.StatusOK, user)
 }
