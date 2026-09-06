@@ -2,24 +2,16 @@ package repository
 
 import (
 	"context"
-	"migrated-app/internal/smartcontact/model"
 	"database/sql"
-	_ "github.com/lib/pq"
+	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
 )
 
-var db *sql.DB
-
-func GetUser(id string) (*model.User, error) {
-	// implementation
-	return &model.User{}, nil
+type UserRepository struct {
+	db *sql.DB
 }
 
-func UpdateUser(user model.User) error {
-	// implementation
-	return nil
-}
-
-func DeleteUser(id string) error {
-	// implementation
-	return nil
+func (ur *UserRepository) GetUser(ctx context.Context, id int) (*model.User, error) {
+	// Dummy implementation for demonstration purposes
+	return nil, nil
 }
