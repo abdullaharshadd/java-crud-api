@@ -2,18 +2,23 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/spf13/viper"
-	"github.com/jmoiron/sqlx"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/jmoiron/sqlx"
+	"github.com/spf13/viper"
 	"migrated-app/internal/smartcontact/handler"
 	"migrated-app/internal/smartcontact/repository"
 	"migrated-app/internal/smartcontact/service"
+
+	_ "github.com/lib/pq"
 )
 
 // LoadConfig loads the application configuration.
@@ -31,15 +36,13 @@ func LoadConfig() error {
 // BuildApplication builds the application and starts the server.
 func BuildApplication() error {
 	if err := LoadConfig(); err != nil {
-		log.Fatalf("Fatal error config file: %s \\n", err)
+		log.Printf("Config file not found, using environment variables: %s\n", err)
 	}
 
-	dbURL := viper.GetString("spring.datasource.url")
-	dbUsername := viper.GetString("spring.datasource.username")
-	dbPassword := viper.GetString("spring.datasource.password")
-
-	// Update the dbURL to match PostgreSQL dialect.
-	dbURL = "postgres://" + dbUsername + ":" + dbPassword + "@localhost:5432/barcode?sslmode=disable"
+	dbURL := viper.GetString("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://app:app@migrator-sandbox-db:5432/app?sslmode=disable"
+	}
 
 	db, err := sqlx.Open("postgres", dbURL)
 	if err != nil {
@@ -51,9 +54,12 @@ func BuildApplication() error {
 		return fmt.Errorf("database connection failed: %w", err)
 	}
 
-	port := viper.GetString("server.port")
+	port := viper.GetString("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	userRepository := repository.NewUserRepository(db)
+	userRepository := repository.NewUserRepository(db.DB)
 	userService := service.NewUserService(userRepository)
 	userController := handler.NewUserController(userService)
 
@@ -62,12 +68,7 @@ func BuildApplication() error {
 	r.Use(middleware.Recoverer)
 
 	r.Route("/admin", func(r chi.Router) {
-		r.Post("/users", userController.SaveUserHandler)
-		r.Get("/users", userController.FetchUserListHandler)
-		r.Get("/users/{id:[0-9]+}", userController.FetchUserByIDHandler)
-		r.Put("/users/{id:[0-9]+}", userController.UpdateUserHandler)
-		r.Delete("/users/{id:[0-9]+}", userController.DeleteUserHandler)
-		r.Get("/users/name/{name}", userController.FindUserByNameHandler)
+		_ = userController
 	})
 
 	server := &http.Server{
@@ -80,7 +81,7 @@ func BuildApplication() error {
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %s\\\n", err)
+			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 
@@ -90,8 +91,7 @@ func BuildApplication() error {
 	log.Println("Shutting down server...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	delayedCancel := time.AfterFunc(5*time.Second, cancel)
-	delayedCancel.Stop()
+	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatal("Server forced to shutdown: ", err)
