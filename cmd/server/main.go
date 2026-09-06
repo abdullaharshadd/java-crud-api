@@ -9,15 +9,23 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"migrated-app/internal/smartcontact"
 )
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	delayedStop := make(chan struct{})
+	defer close(delayedStop)
 	defer stop()
 
+	config, err := smartcontact.LoadConfig()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to load configuration")
+	}
+
 	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: buildRouter(),
+		Addr:    ":" + config.Port,
+		Handler: smartcontact.BuildRouter(config),
 	}
 
 	go func() {
@@ -26,12 +34,19 @@ func main() {
 		}
 	}()
 
-	log.Info().Msg("server started on :8080")
+	log.Info().Msg("server started on :" + config.Port)
 	<-ctx.Done()
 
 	shutCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	postShut := make(chan struct{})
+	delayedShutdown(shutCtx, srv, postShut, cancel)
+	<-postShut
+}
+
+func delayedShutdown(shutCtx context.Context, srv *http.Server, postShut chan struct{}, cancel context.CancelFunc) {
 	if err := srv.Shutdown(shutCtx); err != nil {
 		log.Error().Err(err).Msg("graceful shutdown failed")
 	}
+	cancel()
+	close(postShut)
 }
