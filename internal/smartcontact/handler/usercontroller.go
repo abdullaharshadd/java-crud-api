@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"migrated-app/internal/smartcontact/repository"
-	"migrated-app/internal/smartcontact/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +18,7 @@ func GetUserHandler(c *gin.Context) {
 }
 
 func UpdateUserHandler(c *gin.Context) {
-	var user model.User
+	var user repository.UserModel
 	if err := c.ShouldBindJSON(&user); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
