@@ -1,4 +1,3 @@
-```go
 package service
 
 import (
@@ -17,4 +16,3 @@ func NewUserService(userRepo repository.UserRepository) *UserService {
 func (us *UserService) GetUser(ctx context.Context, id int) (*repository.User, error) {
 	return us.userRepo.GetUser(ctx, id)
 }
-```
