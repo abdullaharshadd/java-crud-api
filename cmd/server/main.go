@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog/log"
 	"migrated-app/internal/config"
-	_ "migrated-app/internal/smartcontact/handler"
+	"migrated-app/internal/smartcontact/handler"
 	"migrated-app/internal/smartcontact/repository"
 	"migrated-app/internal/smartcontact/service"
 )
