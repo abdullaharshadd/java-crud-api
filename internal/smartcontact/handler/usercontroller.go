@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	apperror "migrated-app/internal/smartcontact/error"
+	errormodel "migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/service"
 )
 
