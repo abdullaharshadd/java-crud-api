@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"migrated-app/internal/resources/application.properties"
+	"migrated-app/internal/config"
 	"migrated-app/internal/smartcontact/handler"
 	"migrated-app/internal/smartcontact/service"
 	"migrated-app/internal/smartcontact/repository"
@@ -37,29 +37,30 @@ func buildRouter(us service.UserService) http.Handler {
 	return r
 }
 
-// init initializes the application context.
-func init() {
-	if err := application.properties.LoadConfig(); err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
-	}
-}
-
 // RunApplication starts the SmartContactApplication.
 func RunApplication() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-	db, err := repository.NewDatabase()
+	defer cancel()
+
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	dbURL := cfg.DatabaseURL
+	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer db.Close()
 
 	userRepository := repository.NewUserRepository(db)
-	userService := service.NewUserService(userRepository)
+	userService := service.NewUserServiceImp(userRepository)
 
 	router := buildRouter(userService)
 
 	server := &http.Server{
-		Addr:           ":8080",
+		Addr:           ":" + cfg.Port,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -73,17 +74,13 @@ func RunApplication() {
 	}()
 
 	<-ctx.Done()
-	
+
 	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
-	delayedCtx, cancel2 := context.WithCancel(ctx)
-	defer cancel2()
-	
-	go func() {
-		<-delayedCtx.Done()
-		cancel()
-	}()
-	
-	if err := server.Shutdown(delayedCtx); err != nil {
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalf("Shutdown failed: %v", err)
 	}
+
+	log.Println("Server exiting")
 }
