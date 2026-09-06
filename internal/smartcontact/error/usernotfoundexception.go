@@ -1,17 +1,17 @@
-```go
 package error
 
 import (
 	"errors"
 )
 
-type UserNotFoundError struct{}
+type UserNotFoundError struct {
+	err error
+}
 
 func (e *UserNotFoundError) Error() string {
-	return "User not found"
+	return e.err.Error()
 }
 
 func NewUserNotFoundError() error {
-	return &UserNotFoundError{}
+	return &UserNotFoundError{err: errors.New("User not found")}
 }
-```
