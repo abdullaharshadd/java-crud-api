@@ -2,7 +2,7 @@ package handler
 
 import (
 	"migrated-app/internal/smartcontact/repository"
-	"migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/errors"
 	"net/http"
 )
 
@@ -11,7 +11,7 @@ func GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	user, err := repository.GetUser(ctx, id)
 	if err != nil {
-		error.HandleError(w, err)
+		errors.HandleError(w, err)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
