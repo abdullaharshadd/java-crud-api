@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"migrated-app/internal/smartcontact/model"
 	"database/sql"
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
