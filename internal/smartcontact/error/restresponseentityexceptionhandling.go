@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"migrated-app/internal/smartcontact/repository"
+	"migrated-app/internal/smartcontact/model"
 	"github.com/rs/zerolog/log"
 )
 
@@ -14,7 +15,7 @@ func UserNotFoundMiddleware(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		if err := r.Context().Value("error"); err != nil {
 			if repository.IsUserNotFoundError(err) {
-				errMessage := map[string]string{"message": "User not found", "status": http.StatusText(http.StatusNotFound)}
+				errMessage := model.NewErrorMessage(http.StatusNotFound, "User not found")
 				w.WriteHeader(http.StatusNotFound)
 				if err := json.NewEncoder(w).Encode(errMessage); err != nil {
 					log.Err(err).Msg("failed to write error response")
