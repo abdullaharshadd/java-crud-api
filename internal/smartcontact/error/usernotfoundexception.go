@@ -5,13 +5,13 @@ import (
 )
 
 type UserNotFoundError struct {
-	err error
+	msg string
 }
 
 func (e *UserNotFoundError) Error() string {
-	return e.err.Error()
+	return e.msg
 }
 
 func NewUserNotFoundError() error {
-	return &UserNotFoundError{err: errors.New("User not found")}
+	return &UserNotFoundError{msg: errors.New("User not found").Error()}
 }
