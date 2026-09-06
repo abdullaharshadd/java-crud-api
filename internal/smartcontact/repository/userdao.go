@@ -3,11 +3,28 @@ package repository
 import (
 	"context"
 	"migrated-app/internal/smartcontact/model"
+	"migrated-app/internal/smartcontact/service"
+	"github.com/jmoiron/sqlx"
+	"github.com/rs/zerolog/log"
 )
 
-type UserDao struct{}
+type UserDao struct {
+	db *sqlx.DB
+}
+
+func NewUserDao(db *sqlx.DB) *UserDao {
+	return &UserDao{db: db}
+}
 
 func (ud *UserDao) GetUser(ctx context.Context, id int) (*model.User, error) {
-	// Dummy implementation for demonstration purposes
-	return nil, nil
+	var user model.User
+	err := ud.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = $1", id)
+	if err != nil {
+		if err == sqlx.ErrNoRows {
+			return nil, UserNotFoundError{}
+		}
+		log.Err(err).Msg("failed to get user")
+		return nil, err
+	}
+	return &user, nil
 }
