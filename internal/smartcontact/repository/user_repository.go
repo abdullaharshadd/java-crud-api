@@ -1,24 +1,30 @@
+```go
 package repository
 
 import (
 	"context"
 	"database/sql"
 	"migrated-app/internal/smartcontact/model"
-	"github.com/lib/pq"
+	"github.com/jmoiron/sqlx"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db *sqlx.DB
 }
 
-func (ur *UserRepository) GetUser(ctx context.Context, id string) (*model.User, error) {
+func NewUserRepository(db *sqlx.DB) *UserRepository {
+	return &UserRepository{db: db}
+}
+
+func (ur *UserRepository) GetUser(ctx context.Context, id int) (*model.User, error) {
 	var user model.User
-	err := ur.db.QueryRowContext(ctx, "SELECT * FROM users WHERE id=$1", id).Scan(&user.ID, &user.Name, &user.Email)
+	err := ur.db.GetContext(ctx, &user, "SELECT * FROM users WHERE id = $1", id)
+	if err == sql.ErrNoRows {
+		return nil, NewUserNotFoundError()
+	}
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, pq.ErrNoRows
-		}
 		return nil, err
 	}
 	return &user, nil
 }
+```
