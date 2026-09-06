@@ -21,7 +21,7 @@ func NewUserRepository(db *sql.DB) UserRepository {
 
 func (ur *userRepository) GetUser(ctx context.Context, id int) (*model.User, error) {
 	var user model.User
-	query := "SELECT id, username, email FROM users WHERE id=$1;"
+	query := "SELECT id, name, email FROM users WHERE id=$1;"
 	err := ur.db.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Name, &user.Email)
 	if err == sql.ErrNoRows {
 		return nil, error.NewUserNotFoundError()
