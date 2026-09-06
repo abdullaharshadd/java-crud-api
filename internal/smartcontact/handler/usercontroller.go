@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	errormodel "migrated-app/internal/smartcontact/error"
+	"migrated-app/internal/smartcontact/error"
 	"migrated-app/internal/smartcontact/service"
 )
 
@@ -31,7 +31,7 @@ func (uc *UserController) GetUserHandler(c *gin.Context) {
 	id := c.Param("id")
 	userID, err := strconv.Atoi(id)
 	if err != nil {
-		apperror.HandleError(c.Writer, err)
+		HandleError(c.Writer, err)
 		return
 	}
 	user, err := uc.userService.GetUser(ctx, userID)
