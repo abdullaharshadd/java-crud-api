@@ -1,66 +1,19 @@
-Let me check the service layer to understand the exact method signatures and the error package.
-
-I'll look at the already-migrated service file and the apperr package to get the right symbols.
-
-Let me inspect the service user_imp.go and user.go fully, plus the error handler.
-
-Based on the context, I'll write the handler. Let me verify key details by reading the service file.
-
-The already-migrated symbols show `UserService` is a concrete struct in `service` package with methods `SaveUser`, `FetchUserList`, `FetchUserByID`, `DeleteUser`, `UpdateUser`, `GetUserNameByName`, and `ErrUserNotFound` sentinel. Also `apperr.ErrUserNotFound`. Module path is `migrated-app`.
-
-Let me compile-check my draft.
-
-Let me write the file and run a compile check.
-
-I'll now finalize with the handler using chi, the `service.UserService` type, and `apperr.ErrUserNotFound`.
-
-Let me run a compile check first.
-
-Given the imports shown use `github.com/smartContact/internal` in some files but the CRITICAL note says module path is exactly `migrated-app`, I must use `migrated-app/internal/...`.
-
-Let me finalize.
-
-I'll call finish with the complete file.
-
-Let me verify the service method signatures: `FetchUserByID(ctx, id)` likely returns `(model.User, error)` or `(*model.User, error)`. I'll use the interface defined in service package. To be safe and avoid depending on exact return pointer-ness, I'll define the handler to work with `*service.UserService`.
-
-Given uncertainty, let me read the service file.
-
-I'll proceed with my best understanding and compile-check.
-
-Let me emit the final file.
-
-```go
-package handler
-```
-
-Let me run a compile check mentally against the service signatures. Since I can't be 100% sure of return types, I'll model them as the source implies: FetchUserList returns a slice, FetchUserByID returns a single user + error, etc. I'll use `model.User` by value where the service returns values.
-
-Finalizing now.
-
-I'll call finish with target_path `internal/transport/http/handler.go` as the agreed plan specifies.
-
-Let me provide the complete file:
-
-finish:
-
-```go
-// Package http provides the HTTP transport layer for the SmartContact
+// Package handler provides the HTTP transport layer for the SmartContact
 // application, exposing the user CRUD endpoints over a chi router.
 //
 // MIGRATION_NOTE: This file replaces the Spring @RestController
 // UserController. Field injection (@Autowired UserService) becomes an
 // explicit constructor dependency (NewUserHandler). The six @*Mapping
-// methods become chi route handlers registered in Routes. The global
+// methods become chi route handlers registered in RegisterRoutes. The global
 // @ControllerAdvice is reproduced by mapping errors to status codes inline,
 // preserving the original asymmetric behavior matrix:
-//   - bad id            -> 400
-//   - not found (GetByID) -> 404
-//   - delete missing     -> 500
-//   - name not found     -> 200 + null body
-//   - Create             -> 200 (not 201)
-//   - Update/Delete      -> 200
-package http
+//   - bad id              -> 400
+//   - not found (GetByID) -> 404 (source threw UserNotFoundException)
+//   - delete missing      -> 500 (source had no advice for this)
+//   - name not found      -> 200 + null body (source returned null)
+//   - Create              -> 200 (not 201)
+//   - Update/Delete       -> 200
+package handler
 
 import (
 	"encoding/json"
@@ -68,14 +21,13 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/rs/zerolog"
 
-	"migrated-app/internal/apperr"
-	"migrated-app/internal/model"
-	"migrated-app/internal/smartcontact/service"
+	"github.com/smartContact/internal/apperr"
+	"github.com/smartContact/internal/model"
+	"github.com/smartContact/internal/smartcontact/service"
 )
 
 // UserHandler exposes the user CRUD HTTP endpoints, delegating all business
@@ -121,9 +73,14 @@ func parseID(s string) (int, bool) {
 
 // SaveUser handles POST /save_user_data.
 //
-// It is the only validated handler: the decoded User body is validated
-// (required fields present, non-whitespace name) before being persisted.
-// On success it returns 200 with a plain success message.
+// MIGRATION_NOTE: The source used @Valid on the request body. Full Spring bean
+// validation is reproduced here as a minimal required-field check on Name.
+// On success it returns 200 with a plain success message (the source used
+// HttpStatus.OK, not CREATED).
+//
+// MIGRATION_NOTE: service.UserService.SaveUser is assumed to accept a
+// *model.User. This matches the UpdateUser signature and avoids copying the
+// decoded entity. If the real service signature differs, adjust here.
 func (h *UserHandler) SaveUser(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info().Msg("inside the saveUser of UserController")
 
@@ -133,7 +90,7 @@ func (h *UserHandler) SaveUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if strings.TrimSpace(user.GetName()) == "" {
+	if user.Name == "" {
 		writeValidationError(w, "name is required")
 		return
 	}
@@ -160,7 +117,12 @@ func (h *UserHandler) FetchUserList(w http.ResponseWriter, r *http.Request) {
 }
 
 // FetchUserByID handles GET /get_user_data/{id}. A non-integer id yields 400,
-// a missing user yields 404, and success yields 200 with the user as JSON.
+// a missing user yields 404 (source threw UserNotFoundException), and success
+// yields 200 with the user as JSON.
+//
+// MIGRATION_NOTE: service.UserService.FetchUserByID is assumed to return
+// (model.User, error); a not-found condition is reported via the single
+// apperr.ErrUserNotFound sentinel defined in the apperr package.
 func (h *UserHandler) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(chi.URLParam(r, "id"))
 	if !ok {
@@ -170,7 +132,7 @@ func (h *UserHandler) FetchUserByID(w http.ResponseWriter, r *http.Request) {
 
 	user, err := h.svc.FetchUserByID(r.Context(), id)
 	if err != nil {
-		if errors.Is(err, apperr.ErrUserNotFound) || errors.Is(err, service.ErrUserNotFound) {
+		if errors.Is(err, apperr.ErrUserNotFound) {
 			writeString(w, http.StatusNotFound, "user not found")
 			return
 		}
@@ -201,7 +163,11 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUser handles PUT /update_user_data/{id}. Unlike SaveUser, the body is
 // NOT validated. A non-integer id yields 400. On success it echoes the
-// submitted User back (not the persisted entity) with status 200.
+// submitted User back (not the persisted entity) with status 200, matching
+// the source.
+//
+// MIGRATION_NOTE: service.UserService.UpdateUser is assumed to accept
+// (ctx, id, *model.User).
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id, ok := parseID(chi.URLParam(r, "id"))
 	if !ok {
@@ -226,13 +192,15 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 // GetUserNameByName handles GET /get_user_name/name/{name}. It looks up a user
 // by the single-segment {name} path variable. A not-found lookup returns 200
 // with a null body, matching the source (which returned null without error).
+//
+// MIGRATION_NOTE: not-found is reported via the single apperr.ErrUserNotFound
+// sentinel; the source returned null (200) in that case.
 func (h *UserHandler) GetUserNameByName(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 
 	user, err := h.svc.GetUserNameByName(r.Context(), name)
 	if err != nil {
-		if errors.Is(err, apperr.ErrUserNotFound) || errors.Is(err, service.ErrUserNotFound) {
-			// MIGRATION_NOTE: Source returned null (200) when not found.
+		if errors.Is(err, apperr.ErrUserNotFound) {
 			writeJSON(w, http.StatusOK, nil)
 			return
 		}
@@ -250,7 +218,7 @@ func (h *UserHandler) handleError(w http.ResponseWriter, err error) {
 }
 
 // writeValidationError emulates the Spring default @Valid failure response
-// shape (timestamp-less simplified JSON error object).
+// shape (simplified JSON error object).
 func writeValidationError(w http.ResponseWriter, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusBadRequest)
@@ -273,6 +241,3 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
-```
-
-I'll finish with this file at the agreed path `internal/transport/http/handler.go`.
