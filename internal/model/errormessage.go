@@ -49,13 +49,10 @@ func (e *ErrorMessage) SetMessage(message string) {
 	e.Message = message
 }
 
-// EqualsErrorMessage reports whether two ErrorMessage instances are equal
-// by value, comparing their status and message fields.
-//
-// MIGRATION_NOTE: Named EqualsErrorMessage rather than Equals to avoid
-// colliding with the Equals method already defined in this package
-// (internal/model/user.go).
-func (e *ErrorMessage) EqualsErrorMessage(other *ErrorMessage) bool {
+// Equals reports whether two ErrorMessage instances are equal by value,
+// comparing their status and message fields. Mirrors Lombok's generated
+// equals.
+func (e *ErrorMessage) Equals(other *ErrorMessage) bool {
 	if e == nil || other == nil {
 		return e == other
 	}
@@ -80,12 +77,8 @@ func hashString(s string) int {
 	return h
 }
 
-// StringErrorMessage returns a human-readable representation including the
-// status and message field values.
-//
-// MIGRATION_NOTE: Named StringErrorMessage rather than String to avoid
-// colliding with the String method already defined in this package
-// (internal/model/user.go).
-func (e *ErrorMessage) StringErrorMessage() string {
+// String returns a human-readable representation including the status and
+// message field values. Implements fmt.Stringer.
+func (e *ErrorMessage) String() string {
 	return fmt.Sprintf("ErrorMessage(status=%s, message=%s)", e.Status, e.Message)
 }
