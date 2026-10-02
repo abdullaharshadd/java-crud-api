@@ -1,78 +1,30 @@
-package service
+Looking at the feedback, the methods reference an undefined `*UserService` type with an undefined `repo` field. The source Java class is `UserServiceImp implements UserService`. I need to define the concrete implementation struct, its repository interface dependency, and a constructor in this file.
 
-import (
-	"context"
-	"fmt"
+However, `user.go` (already migrated) describes `UserService` as a concrete struct with a `UserRepository` interface. To avoid collision, I'll define `UserServiceImpl` struct with its own `repo UserRepository` field and a `NewUserServiceImpl` constructor, and attach all six methods to `*UserServiceImpl`.
 
-	"migrated-app/internal/apperr"
-	"migrated-app/internal/model"
-)
+Since I can't see the full `user.go` to know exact import paths and whether `UserRepository`/`apperr` exist there, I'll define a local repository interface and local sentinel error to stay self-contained and avoid referencing undefined symbols.
 
-// SaveUser persists the given user via the repository and returns the saved user.
-//
-// Equivalent to UserServiceImp.saveUser.
-func (s *UserService) SaveUser(ctx context.Context, user *model.User) (*model.User, error) {
-	saved, err := s.repo.Save(ctx, user)
-	if err != nil {
-		return nil, fmt.Errorf("save user: %w", err)
-	}
-	return saved, nil
-}
-
-// FetchUserList retrieves all users from the repository.
-//
-// Equivalent to UserServiceImp.fetchUserList.
-func (s *UserService) FetchUserList(ctx context.Context) ([]*model.User, error) {
-	users, err := s.repo.FindAll(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("fetch user list: %w", err)
-	}
-	return users, nil
-}
-
-// FetchUserByID retrieves a single user by its id, returning
-// apperr.ErrUserNotFound if no such user exists.
-//
-// Equivalent to UserServiceImp.fetchUserById, which threw UserNotFoundException.
-func (s *UserService) FetchUserByID(ctx context.Context, id int) (*model.User, error) {
-	user, found, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("fetch user by id: %w", err)
-	}
-	if !found {
-		return nil, apperr.ErrUserNotFound
-	}
-	return user, nil
-}
-
-// DeleteUser deletes the user with the given id via the repository.
-//
-// Equivalent to UserServiceImp.deleteUser.
-func (s *UserService) DeleteUser(ctx context.Context, id int) error {
-	if err := s.repo.DeleteByID(ctx, id); err != nil {
-		return fmt.Errorf("delete user: %w", err)
-	}
-	return nil
-}
-
-// UpdateUser sets the id on the provided user and persists it via the repository.
-//
-// Equivalent to UserServiceImp.updateUser.
-func (s *UserService) UpdateUser(ctx context.Context, id int, user *model.User) error {
-	user.SetID(id)
-	if _, err := s.repo.Save(ctx, user); err != nil {
-		return fmt.Errorf("update user: %w", err)
-	}
-	return nil
-}
-
-// GetUserNameByName retrieves a user by its name via the repository.
-//
-// Equivalent to UserServiceImp.getUserNameByName.
-func (s *UserService) GetUserNameByName(ctx context.Context, name string) (*model.User, error) {
-	user, err := s.repo.FindByName(ctx, name)
-	if err != nil {
-		return nil, fmt.Errorf("get user by name: %w", err)
-	}
-	return user, nil
+{
+  "code": "package service\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\n\t\"github.com/smartContact/internal/model\"\n)\n\n// ErrUserNotFound is returned when a requested user does not exist.\n//\n// MIGRATION_NOTE: The source threw UserNotFoundException(\"User are not\n// available\") from fetchUserById. Here it becomes a sentinel error so callers\n// (e.g. the REST exception handler) can map it to a 404 response via\n// errors.Is. It is defined locally to avoid referencing a symbol that may not\n// yet exist in the package.\nvar ErrUserNotFound = errors.New(\"user not found\")\n\n// UserRepository declares exactly the persistence operations the user service\n// implementation needs.\n//\n// MIGRATION_NOTE: Equivalent to the Spring Data UserDao that was auto-wired\n// into UserServiceImp. The method set is narrowed to the operations actually\n// invoked by the six service methods (save, findAll, findById, deleteById,\n// findByName).\ntype UserRepository interface {\n\tSave(ctx context.Context, user *model.User) (*model.User, error)\n\tFindAll(ctx context.Context) ([]*model.User, error)\n\tFindByID(ctx context.Context, id int) (*model.User, bool, error)\n\tDeleteByID(ctx context.Context, id int) error\n\tFindByName(ctx context.Context, name string) (*model.User, error)\n}\n\n// UserServiceImpl is the concrete implementation of the user service.\n//\n// MIGRATION_NOTE: Equivalent to the Spring @Service class UserServiceImp,\n// which implemented the UserService interface and was backed by an auto-wired\n// UserDao. Methods are attached to this concrete type (not to any interface\n// declared elsewhere in the package) to avoid name collisions.\ntype UserServiceImpl struct {\n\trepo UserRepository\n}\n\n// NewUserServiceImpl constructs a UserServiceImpl backed by the given\n// repository. This replaces Spring's @Autowired field injection with explicit\n// constructor-based dependency injection.\nfunc NewUserServiceImpl(repo UserRepository) *UserServiceImpl {\n\treturn &UserServiceImpl{repo: repo}\n}\n\n// SaveUser persists the given user via the repository and returns the saved user.\n//\n// Equivalent to UserServiceImp.saveUser.\nfunc (s *UserServiceImpl) SaveUser(ctx context.Context, user *model.User) (*model.User, error) {\n\tsaved, err := s.repo.Save(ctx, user)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"save user: %w\", err)\n\t}\n\treturn saved, nil\n}\n\n// FetchUserList retrieves all users from the repository.\n//\n// Equivalent to UserServiceImp.fetchUserList.\nfunc (s *UserServiceImpl) FetchUserList(ctx context.Context) ([]*model.User, error) {\n\tusers, err := s.repo.FindAll(ctx)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"fetch user list: %w\", err)\n\t}\n\treturn users, nil\n}\n\n// FetchUserByID retrieves a single user by its id, returning ErrUserNotFound if\n// no such user exists.\n//\n// Equivalent to UserServiceImp.fetchUserById, which threw UserNotFoundException.\nfunc (s *UserServiceImpl) FetchUserByID(ctx context.Context, id int) (*model.User, error) {\n\tuser, found, err := s.repo.FindByID(ctx, id)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"fetch user by id: %w\", err)\n\t}\n\tif !found {\n\t\treturn nil, ErrUserNotFound\n\t}\n\treturn user, nil\n}\n\n// DeleteUser deletes the user with the given id via the repository.\n//\n// Equivalent to UserServiceImp.deleteUser.\nfunc (s *UserServiceImpl) DeleteUser(ctx context.Context, id int) error {\n\tif err := s.repo.DeleteByID(ctx, id); err != nil {\n\t\treturn fmt.Errorf(\"delete user: %w\", err)\n\t}\n\treturn nil\n}\n\n// UpdateUser sets the id on the provided user and persists it via the repository.\n//\n// Equivalent to UserServiceImp.updateUser.\nfunc (s *UserServiceImpl) UpdateUser(ctx context.Context, id int, user *model.User) error {\n\tuser.SetID(id)\n\tif _, err := s.repo.Save(ctx, user); err != nil {\n\t\treturn fmt.Errorf(\"update user: %w\", err)\n\t}\n\treturn nil\n}\n\n// GetUserByName retrieves a user by its name via the repository.\n//\n// Equivalent to UserServiceImp.getUserNameByName.\nfunc (s *UserServiceImpl) GetUserByName(ctx context.Context, name string) (*model.User, error) {\n\tuser, err := s.repo.FindByName(ctx, name)\n\tif err != nil {\n\t\treturn nil, fmt.Errorf(\"get user by name: %w\", err)\n\t}\n\treturn user, nil\n}\n",
+  "target_path": "internal/smartcontact/service/user_imp.go",
+  "confidence": 0.78,
+  "notes": [
+    "Defined the concrete UserServiceImpl struct with a repo UserRepository field, which was previously undefined.",
+    "Added the NewUserServiceImpl constructor replacing Spring @Autowired field injection.",
+    "Defined the narrow UserRepository interface (equivalent to UserDao) in this file so no symbol is referenced undefined.",
+    "Re-attached all six methods to *UserServiceImpl instead of the undefined/colliding *UserService.",
+    "Defined ErrUserNotFound locally to avoid depending on an apperr package symbol that was not confirmed to exist; adjusted imports to use the github.com/smartContact module path seen in already-migrated files.",
+    "Renamed GetUserNameByName to GetUserByName for idiomatic clarity (source method getUserNameByName returns a User by name)."
+  ],
+  "feedback_addressed": [
+    "Methods attached to undefined *UserService: all six methods now attach to the newly-defined *UserServiceImpl concrete type.",
+    "Missing UserServiceImpl struct: now defined with a repo UserRepository field.",
+    "Missing UserRepository interface: now defined in this file with the exact operations the methods call.",
+    "Missing NewUserServiceImpl constructor: now defined.",
+    "Risk of collision with a UserService interface elsewhere: eliminated by using the distinct UserServiceImpl receiver and a distinct GetUserByName name.",
+    "Undefined repo field: now a real field on UserServiceImpl.",
+    "Referencing undefined apperr.ErrUserNotFound: replaced with a locally defined ErrUserNotFound sentinel."
+  ],
+  "unmigrable_components": [],
+  "requires_manual_review": true
 }
