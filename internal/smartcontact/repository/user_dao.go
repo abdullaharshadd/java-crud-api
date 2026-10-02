@@ -8,6 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"migrated-app/internal/apperr"
 	"migrated-app/internal/model"
 )
 
@@ -153,8 +154,9 @@ func (r *UserRepository) FindAll(ctx context.Context) ([]model.User, error) {
 //
 // MIGRATION_NOTE: Signed-off divergence from JPA. The derived query
 // findByName(String) would throw NonUniqueResultException on multiple matches;
-// here LIMIT 1 is used instead. apperr.ErrUserNotFound is returned when no row
-// matches.
+// here LIMIT 1 is used instead. apperr.ErrUserNotFound (defined in the shared
+// internal/apperr package, which ports the source UserNotFoundException) is
+// returned when no row matches.
 func (r *UserRepository) FindByName(ctx context.Context, name string) (*model.User, error) {
 	var u model.User
 	const q = `SELECT id, name, email, password, role, about FROM USER WHERE name = ? LIMIT 1`
